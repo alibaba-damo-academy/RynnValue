@@ -1,0 +1,39 @@
+# Preprocess config for LoRA fine-tuning on RoboFAC after running generate_hf_dataset with robofac.yaml.
+# Use with: uv run python -m robometer.data.scripts.preprocess_datasets --config robometer/configs/preprocess_finetune.yaml
+#
+# Order: 1) generate_hf_dataset (robofac.yaml) → 2) this preprocess → 3) train.
+# Run from repo root so the path below resolves, or use an absolute path for train_datasets/eval_datasets.
+#
+# Before running:
+#   export ROBOMETER_PROCESSED_DATASETS_PATH=/path/to/save/processed_datasets  # for training
+#
+# For training, set data.train_datasets and data.eval_datasets to the cache key: "robometer_dataset/robofac/robofac/robofac"
+# (dataset_path/subset). See FINETUNE_ROBOMETER.md.
+
+# Path to the converted dataset (output_dir/dataset_name from robofac.yaml = robometer_dataset/robofac/robofac)
+train_datasets:
+  - "aliangdw/robofac_rbm"
+
+# Single subset matching generate_hf_dataset output (config name = dataset_name = robofac)
+train_subsets:
+  - ["robofac"]
+
+eval_datasets:
+  - "aliangdw/robofac_rbm"
+
+eval_subsets:
+  - ["robofac"]
+
+max_frames_for_preprocessing: 32
+video_frame_sampling: "uniform"
+num_proc: 1
+num_threads: 4
+force_reprocess: false
+cache_dir: /path/to/robometer/processed_datasets
+
+# Embedding preprocessing (optional; set false for faster preprocessing without embeddings)
+precompute_embeddings: false
+embeddings_cache_dir: "embeddings"
+dinov2_model: "facebook/dinov2-base"
+sentence_model: "sentence-transformers/all-MiniLM-L12-v2"
+embedding_batch_size: 64

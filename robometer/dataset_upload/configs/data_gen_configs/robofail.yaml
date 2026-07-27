@@ -1,0 +1,17 @@
+# RoboFail dataset configuration
+dataset:
+  dataset_path: "deps/robofail"  # Local path to RoboFail dataset directory
+  dataset_name: robofail
+
+output:
+  output_dir: datasets/robofail_rfm
+  max_trajectories: null
+  max_frames: 64
+  shortest_edge_size: 240
+  use_video: true
+  fps: 30
+  center_crop: false
+
+hub:
+  push_to_hub: true 
+  hub_repo_id: robofail_rfm

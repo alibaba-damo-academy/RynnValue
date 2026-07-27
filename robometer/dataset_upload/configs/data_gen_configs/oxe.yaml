@@ -1,0 +1,17 @@
+# EgoDex dataset configuration
+dataset:
+  dataset_path: "/home1/jessez/scratch_data/tensorflow_datasets/openx_datasets/"  # Local path to OXE dataset directory
+  dataset_name: oxe_bc_z # TODO: fill in dataset name
+
+output:
+  output_dir: robometer_datasets/oxe_rfm
+  max_trajectories: -1
+  max_frames: 32
+  shortest_edge_size: 240
+  use_video: true
+  fps: 10
+  center_crop: false
+
+hub:
+  push_to_hub: true 
+  hub_repo_id: oxe_rfm

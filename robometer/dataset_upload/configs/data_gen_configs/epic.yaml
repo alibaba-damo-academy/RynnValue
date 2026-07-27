@@ -1,0 +1,20 @@
+# config.yaml
+dataset:
+  dataset_path: ../epic_kitchens_100
+  dataset_name: epic
+
+output:
+  output_dir: ./robometer_dataset/epic_rfm
+  max_trajectories: -1
+  max_frames: 64
+  use_video: true
+  fps: 30
+  shortest_edge_size: 240
+  center_crop: false
+  num_workers: 3 # less workers because cv2/ffmpeg loads are multiprocessed
+
+hub:
+  push_to_hub: true
+  hub_repo_id: epic_rfm
+
+

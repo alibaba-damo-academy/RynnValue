@@ -1,0 +1,48 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to edit or validate it.
+cff-version: 1.2.0
+message: >-
+  If you use RynnValue in your research, please cite it
+  using the metadata from this file.
+type: software
+title: "RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance"
+abstract: >-
+  RynnValue is a RynnBrain-based vision-language value model
+  that predicts, for every frame of a robot manipulation
+  video, the minimum remaining time in seconds until the
+  task instruction is completed, together with a
+  natural-language analysis (video description,
+  instruction-video match, and task success verdicts). The
+  model uses distributional value heads with two-hot target
+  encodings, paired absolute and relative value heads, and a
+  prediction-slot-isolated attention scheme. The repository
+  also provides an inference toolkit, a reward-model
+  evaluation suite built on Robometer (reward alignment,
+  policy ranking, confusion matrix), and value-driven
+  reinforcement learning of vision-language-action policies
+  (offline IQL and online SAC latent steering) built on
+  openpi.
+authors:
+  - name: "RynnValue Team, Alibaba"
+keywords:
+  - value model
+  - reward model
+  - robot manipulation
+  - vision-language-action
+  - vision-language model
+  - reinforcement learning
+  - embodied AI
+  - RynnBrain
+license: Apache-2.0
+version: 0.1.0
+date-released: "2026-07-26"
+# TODO: update with the public repository URL upon release.
+repository-code: "https://github.com/alibaba-damo-academy/RynnValue"
+# TODO: uncomment and complete once the paper is published.
+# preferred-citation:
+#   type: article
+#   title: "RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance"
+#   authors:
+#     - name: "RynnValue Team, Alibaba"
+#   year: 2026
+#   url: "https://arxiv.org/abs/XXXX.XXXXX"

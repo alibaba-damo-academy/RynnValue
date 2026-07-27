@@ -1,0 +1,19 @@
+[project]
+name = "rynnvalue"
+version = "0.1.0"
+description = "RynnValue: a general-purpose value model for robot manipulation (model + inference toolkit)"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4.0",
+    "transformers>=4.57.0,<5",
+    "accelerate>=1.0.0",
+    "einops>=0.8.0",
+    "numpy",
+    "pillow",
+    "imageio[ffmpeg]",
+    "matplotlib",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,13 @@
+# @package _global_
+# RynnValue baseline (Qwen3VL-based, multi-head value prediction)
+reward_model: "rynnvalue"
+model_path: ""
+
+model_config:
+  checkpoint_path: ""
+  stride: 1
+  num_frames: 8
+  mode: "absolute"
+  camera_desc_lookup_path: null
+  max_new_tokens: 128
+  confusion_score_mode: "match_binary"  # or "normalized_value"

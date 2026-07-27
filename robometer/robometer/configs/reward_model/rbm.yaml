@@ -1,0 +1,9 @@
+# @package _global_
+
+# RBM model configuration
+reward_model: "rbm"
+
+model_path: null  # Path to RBM model checkpoint (HuggingFace repo ID or local path, required)
+
+model_config:
+  batch_size: 32

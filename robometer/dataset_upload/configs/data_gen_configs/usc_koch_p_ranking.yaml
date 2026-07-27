@@ -1,0 +1,24 @@
+# USC Koch P-Ranking (robot-only) Dataset Configuration
+#
+# Folder expected (see dataset_upload/data_scripts/usc_koch_human_robot_paired/download_datasets.sh):
+#   <dataset_path>/robot/usc_koch_*  (includes success/suboptimal/failure)
+#
+dataset:
+  dataset_path: ~/projects/robometer/datasets/usc_koch_human_robot_paired
+  dataset_name: usc_koch_p_ranking_rfm
+
+output:
+  output_dir: ./robometer_dataset/usc_koch_p_ranking  # overridden per dataset_name (like other dataset_upload converters)
+  max_trajectories: -1  # -1 for all trajectories
+  max_frames: 32
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+  num_workers: 4
+
+hub:
+  push_to_hub: true
+  hub_repo_id: usc_koch_p_ranking_rfm  # recommended: keep constant; converter strips suffixes when pushing
+
+

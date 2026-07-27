@@ -1,0 +1,40 @@
+# @package _global_
+
+# Baseline Evaluation Configuration for RBM
+# This config is used for running baseline evaluations (GVL, RL-VLM-F) on datasets
+# Used by run_baseline_eval.py
+
+defaults:
+  - _self_
+  - reward_model: rlvlmf  # Options: rlvlmf, gvl, vlac, rbm, rewind, roboreward, robodopamine, topreward
+
+# Shared configuration
+# model_path is set in reward_model/*.yaml files, but can be overridden here
+# model_path: null  # Override model path if needed (HuggingFace repo ID or local path)
+max_frames: 32  # Maximum frames for models (used by GVL and potentially others)
+
+# Custom evaluation configuration
+# This specifies which evaluation types and datasets to run
+custom_eval:
+  eval_types: ["quality_preference"]  # Options: ["quality_preference", "reward_alignment", "policy_ranking", "confusion_matrix"]
+  quality_preference: ["aliangdw_metaworld_metaworld_eval"]  # Datasets for preference evaluation
+  reward_alignment: ["aliangdw_metaworld_metaworld_eval"]  # Datasets for progress evaluation
+  policy_ranking: [aliangdw_usc_xarm_policy_ranking_usc_xarm_policy_ranking,aliangdw_usc_franka_policy_ranking_usc_franka_policy_ranking,aliangdw_utd_so101_policy_ranking_utd_so101_policy_ranking,jesbu1_mit_franka_p-rank_rfm_mit_franka_p-rank_rfm,jesbu1_utd_so101_clean_policy_ranking_top_utd_so101_clean_policy_ranking_top,jesbu1_utd_so101_clean_policy_ranking_wrist_utd_so101_clean_policy_ranking_wrist,jesbu1_usc_koch_p_ranking_rfm_usc_koch_p_ranking_all]  # Datasets for progress evaluation
+  confusion_matrix: ["aliangdw_metaworld_metaworld_eval"]  # Datasets for progress evaluation
+  comparisons_per_task: null # Limit number of comparisons per task (None = use all)
+  max_comparisons: 100  # Limit total number of comparisons across all tasks (None = use all)
+  reward_alignment_max_trajectories: 10  # Max trajectories for reward alignment
+  policy_ranking_max_tasks: 20  # Max tasks for policy ranking
+  use_frame_steps: false  # Whether to use frame steps (subsequences) for reward_alignment and policy_ranking. true = generate subsequences, false = use whole trajectory.
+  num_examples_per_quality_pr: null  # Examples per quality label for policy ranking
+  num_partial_successes: 5  # For RoboArena: Total trajectories to sample via circular sampling (None = use num_examples_per_quality_pr per group)
+  custom_eval_random_seed: 42
+
+# Output directory for evaluation results
+output_dir: null  # Defaults to ./baseline_eval_output/<reward_model>_<timestamp>
+
+# Server settings (for baseline_eval_server.py)
+server_url: "0.0.0.0"  # Evaluation server URL
+server_port: 8001  # Evaluation server port
+use_frame_steps: false  # Server-side default for use_frame_steps when a request does not set it
+batch_size: 16  # Batch size for batched model inference (e.g. rynnvalue frame-step sub-samples)

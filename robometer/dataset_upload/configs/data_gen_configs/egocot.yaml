@@ -1,0 +1,17 @@
+# config.yaml
+dataset:
+  dataset_path: ./egocot # Path to EgoCoT dataset directory that has EgoCOT_clear/ and results.json inside
+  dataset_name: egocot # This will be the dataset name / data source
+
+output:
+  output_dir: ./robometer_dataset/egocot_rfm
+  max_trajectories: -1  # -1 for all trajectories
+  max_frames: 8  # EgoCoT uses 8 consecutive frames anyway
+  use_video: true
+  fps: 1  # Since EgoCoT is not a video dataset, we use 1 fps
+  shortest_edge_size: 224  # Standard size for vision models
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: egocot_rfm

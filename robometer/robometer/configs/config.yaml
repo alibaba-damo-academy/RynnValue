@@ -1,0 +1,249 @@
+# @package _global_
+
+# Robometer (RBM) Configuration
+# Configuration file for training and evaluating the RBM model with three objectives
+
+defaults:
+  - base_config
+  - _self_
+
+# =====================================================================================
+# Experiment Mode
+# =====================================================================================
+mode: "train"  # "train" or "evaluate"
+debug: false  # Set to true for debugging (reduces dataset size, enables debug features)
+trainer_cls: "rbm_heads" # "rewind_transformer"
+
+# =====================================================================================
+# Model Configuration
+# =====================================================================================
+model:
+  model_type: default
+  base_model_id: Qwen/Qwen3-VL-4B-Instruct
+  torch_dtype: bfloat16
+  # torch_dtype: float16
+  trust_remote_code: true
+  # Additional options for more comprehensive training (when use_peft: false)
+  train_vision_encoder: false   # Whether to train the vision encoder
+  train_language_model: true    # Whether to train the language model
+  train_progress_head: true     # Whether to train the progress prediction head
+  train_preference_head: true   # Whether to train the preference prediction head
+  train_success_head: true # Whether to train the success prediction head
+  average_temporal_patches: false # Whether to average the patches for video frames when multi_image=False
+  use_per_frame_progress_token: true # Inserts <|prog_token|> after each frame for per-frame progress prediction. Requires use_multi_image=True.
+  # Pooling strategy used when extracting per-frame embeddings from vision token spans (multi-image mode), when use_per_frame_progress_token=False.
+  # - mean: average over patch tokens for each frame (current default)
+  # - boundary: use the last patch token in the frame span
+  # - attention: learned attention pooling over patch tokens in the frame span
+  frame_pooling: "mean"
+  # Softmax temperature for attention pooling (only used when frame_pooling="attention")
+  frame_pooling_attn_temperature: 1.0
+  use_multi_image: ${data.use_multi_image}  # Reference from data config - If True, feed frames as a list of images instead of converting to video (avoids encoding overhead)
+
+  use_peft: false
+  peft_vision_encoder: false
+  quantization: false
+  use_unsloth: true  # Set to true to use unsloth for faster training with Qwen models
+  progress_loss_type: ${loss.progress_loss_type}  # Type of progress loss: "l1", "l2", or "discrete"
+  progress_discrete_bins: ${loss.progress_discrete_bins}  # Number of discrete bins for progress (synced from loss config)
+
+# =====================================================================================
+# PEFT Configuration
+# =====================================================================================
+peft:
+  r: 32
+  lora_alpha: 64
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+  lora_dropout: 0.05
+  bias: "none"
+
+
+# =====================================================================================
+# Data Configuration
+# =====================================================================================
+data:
+  # Dataset paths and sources
+  train_datasets: 
+    - mw
+  
+  # Evaluation dataset settings
+  eval_datasets:
+    - mw
+
+  eval_subset_size: null  # Number of evaluation examples
+
+  # Video processing settings
+  max_frames_after_preprocessing: 64
+  max_frames: 16  # Maximum frames per trajectory
+  resized_height: null # Height to resize images/videos to
+  resized_width: null   # Width to resize images/videos to
+  load_embeddings: false
+  min_frames_per_trajectory: 5 # Minimum number of frames required per trajectory (trajectories with fewer frames will be filtered out)
+  use_multi_image: true # If True, feed frames as a list of images instead of converting to video (avoids encoding overhead)
+  shuffle_progress_frames: false  # If True, shuffle progress frames (except the first frame) and labels during training
+  traj_same_source_prob: 0.5  # Probability of sampling alternative task instruction from same data source
+
+  # Data generation settings
+  sample_type_ratio: [1, 0, 0]  # Ratio of preference, progress (progress absorbed in preference if predict_pref_progress is true). 
+  # do not change the sample type ratio from [1, 0, 0] unless you know what you are doing -- the default will train, with a single LLM forward pass, all 3 prediction heads.
+
+  dataset_preference_ratio: 0.7  # Ratio of preferences from dataset vs generated
+  # Tunable strategy ratios for preference negative generation: [rewind, suboptimal_same_task, different_task, reverse_progress]
+  preference_strategy_ratio: [1, 1, 1, 1]
+  # Tunable strategy ratios for progress generation: [different_task, forward_progress, reverse_progress, rewind]
+  progress_strategy_ratio: [1, 1, 1, 1]  # [different_task, forward_progress, reverse_progress, rewind]
+  shuffle: true
+  seed: 42
+
+  dataset_type: rbm
+
+  # Data loading settings
+  dataloader_pin_memory: True
+  dataloader_num_workers: 8
+  dataloader_persistent_workers: True
+
+  progress_pred_type: "absolute_first_frame" # "absolute_first_frame", "relative_first_frame", or "absolute_wrt_total_frames"
+
+  # Partial success threshold (for datasets with partial_success like RoboArena and RoboReward)
+  partial_success_threshold: 0.2  # Minimum difference in partial_success between chosen and rejected trajectories
+
+  # Success label parameters
+  min_success: 0.5  # Progress threshold below which success label pred is applied, anything in between min and max is not used for success pred loss unless succ = 1 for those frames.
+  max_success: 1.0  # Progress threshold above which success label is 1. Most sim datasets don't have a special cutoff number so we use 1.0 as default as sims will succeed at 1.0 progress.
+  # Dataset-specific success thresholds (CSV format: dataset_name,success_percentage)
+  dataset_success_cutoff_file: "robometer/data/dataset_success_cutoff.txt"
+  
+  progress_loss_type: ${loss.progress_loss_type}  # Type of progress loss: "l1", "l2", or "discrete"
+  progress_discrete_bins: ${loss.progress_discrete_bins}  # Number of discrete bins for progress when using discrete loss
+
+  use_per_frame_progress_token: ${model.use_per_frame_progress_token}
+  predict_last_frame_partial_progress: False 
+  
+# =====================================================================================
+# Custom Evaluation Configuration
+# =====================================================================================
+custom_eval:
+  # this section is for adding additional evals like policy ranking, confusion matrix, and alignment etc
+  # during training 
+  eval_types: ["policy_ranking", "confusion_matrix", "reward_alignment"]
+  policy_ranking: 
+    - mw
+  confusion_matrix: 
+    - mw
+  reward_alignment: 
+    - mw
+  quality_preference:
+    - mw
+  comparisons_per_task: 5  # Limit number of quality preference comparisons per task. null = use all comparisons. Uniformly samples if limit is set.
+  max_comparisons: null  # Limit total number of quality preference comparisons across all tasks. null = use all comparisons. Uniformly samples if limit is set.
+  num_examples_per_quality_pr: 5  # Number of trajectories to sample per quality label for policy ranking evaluation. Only tasks with multiple quality labels are used.
+  reward_alignment_max_trajectories: 10  # Maximum number of trajectories to use for reward alignment evaluation. null = use all trajectories.
+  custom_eval_random_seed: 42  # Random seed for custom eval samplers to ensure deterministic sampling across ranks.
+  policy_ranking_max_tasks: 100  # Maximum number of tasks to use for policy ranking evaluation. null = use all tasks with multiple quality labels.
+  use_frame_steps: true  # Whether to use frame steps (subsequences) for reward_alignment and policy_ranking. true = generate subsequences, false = use whole trajectory.
+  num_partial_successes: 5  # Number of partial successes to sample for policy ranking evaluation. null = use all partial successes.
+  
+# =====================================================================================
+# Training Configuration
+# =====================================================================================
+training:  
+  # Output and logging
+  output_dir: "./logs"
+  overwrite_output_dir: false  # If true, overwrite output directory if it exists (works with accelerate/distributed training)
+  
+  # Training parameters
+  per_device_train_batch_size: 16
+  gradient_accumulation_steps: 1
+  learning_rate: 2e-5
+  num_train_epochs: -1  # Number of epochs to train for
+  save_strategy: "no"
+  logging_steps: 1
+  save_steps: 200
+  max_steps: 20000  # -1 means no limit, use num_train_epochs instead
+  run_default_eval: false
+  # weight_decay: 0.1
+  weight_decay: 0.01
+  
+  # Evaluation settings
+  evaluation_strategy: "steps"  # Options: "no", "steps", "epoch"
+  eval_steps: 250  
+  custom_eval_steps: 250
+  # eval_epochs: 100  
+  per_device_eval_batch_size: 16  # Evaluation batch size per device
+  do_eval: true  # Enable evaluation during training
+  prediction_loss_only: true # Only compute loss for the prediction head
+  dataloader_pin_memory: ${data.dataloader_pin_memory}
+  dataloader_num_workers: ${data.dataloader_num_workers}
+  dataloader_persistent_workers: ${data.dataloader_persistent_workers}
+  
+  # Model settings
+  max_seq_length: 1024 # currently not used
+  beta: 0.1  # DPO beta parameter
+  
+  # Checkpoint loading (setup_utils loads weights; optimizer/step not restored)
+  load_from_checkpoint: null  # Hub path or local path to load model weights at setup
+  # Full resume (restore optimizer state and step counter)
+  resume_from_checkpoint: null  # Set to checkpoint path for full resume, null otherwise
+  
+  # Mixed precision and optimization
+  bf16: true
+  fp16: false
+  remove_unused_columns: false
+  gradient_checkpointing: true  # Re-enabled since FSDP is handled by accelerate config
+    
+  # Distributed training settings
+  ddp_find_unused_parameters: false
+  ddp_bucket_cap_mb: 25
+
+  # Optimizer settings
+  lr_scheduler_type: "cosine"
+  warmup_steps: 0
+  warmup_ratio: 0.1
+  max_grad_norm: 10.0
+  
+  # Vision encoder fine-tuning settings
+  vision_encoder_lr: 1e-5  # Learning rate for last N vision encoder layers. If null, uses the same LR as other parameters.
+  vision_encoder_num_layers: 3  # Number of last vision encoder layers to fine-tune with vision_encoder_lr. Only used if vision_encoder_lr is set.
+
+  # RBM-specific settings
+  predict_pref_progress: true
+
+# =====================================================================================
+# Loss Configuration
+# =====================================================================================
+loss:
+  # Success loss weight and pos_weight are computed dynamically from class imbalance
+  # to weight positive and negative classes equally (balanced accuracy)
+  predict_last_frame_progress: false  # If true, only compute progress loss for the last frame
+  progress_loss_type: "discrete"  # Options: "l1", "l2", or "discrete" (default: "l2")
+  progress_discrete_bins: 10  # Number of discrete bins for progress when using discrete loss (default: 10)
+
+# =====================================================================================
+# Logging and Output Configuration
+# =====================================================================================
+logging:
+  save_model: true
+  save_processor: true
+  log_to: [wandb]
+  wandb_project: "robometer"
+  wandb_entity: clvr
+  wandb_notes: "training Robometer"
+  
+  # SaveBestCallback configuration
+  save_best:
+    metric_names: 
+      - eval_p_rank/kendall_last_utd_so101_clean_top
+      - eval_p_rank/kendall_last_usc_xarm
+      - eval_p_rank/kendall_last_usc_franka
+      - eval_p_rank/kendall_last_rfm_new_mit_franka_nowrist
+      - eval_p_rank/kendall_last_usc_trossen
+
+    greater_is_better: [true, true, true, true, true]  # Whether higher values are better for each metric (must match metric_names length)
+    keep_top_k: 5  # Number of best checkpoints and uploads to keep
+    save_every: 1000  # Save 'latest' checkpoint every N steps (should be multiple of custom_eval_steps). Set to null to disable.
+    
+    # Hub upload configuration (optional)
+    upload_to_hub: false   # Whether to upload best models to HuggingFace Hub
+    hub_save_every: 1000  # Frequency (in steps) to upload to Hub. null = upload every checkpoint. Local saves always happen regardless.
+    hub_token: null       # Set to your HF token or use HF_TOKEN environment variable
+    hub_private: false    # Whether to make the uploaded model private

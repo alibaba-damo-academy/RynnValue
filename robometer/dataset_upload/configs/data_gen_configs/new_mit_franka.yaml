@@ -1,0 +1,19 @@
+# Robometer MIT Franka Dataset Configuration
+dataset:
+  dataset_path: ~/robometer/datasets/ROBOMETER_MIT_Franka  # Path to dataset directory
+  dataset_name: rfm_new_mit_franka_rfm_nowrist
+  exclude_wrist_cam: true  # Set to true to only process external camera views
+
+output:
+  output_dir: ./robometer_dataset/rfm_new_mit_franka_rfm_nowrist
+  max_trajectories: -1  # -1 for all trajectories
+  max_frames: 32
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+  num_workers: 4
+
+hub:
+  push_to_hub: true
+  hub_repo_id: rfm_new_mit_franka_rfm_nowrist

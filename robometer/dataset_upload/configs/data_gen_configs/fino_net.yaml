@@ -1,0 +1,18 @@
+# config.yaml for FinoNet dataset
+dataset:
+  dataset_path: ./datasets/fino-net # Path to the dataset root (contains failure.zip or unzipped failure directory)
+  dataset_name: fino_net  # This will be the dataset name / data source
+
+output:
+  output_dir: robometer_dataset/fino_net_rfm
+  max_trajectories: -1  # -1 for all episodes
+  max_frames: 64
+  use_video: true
+  fps: 5
+  shortest_edge_size: 240
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: fino_net_rfm
+

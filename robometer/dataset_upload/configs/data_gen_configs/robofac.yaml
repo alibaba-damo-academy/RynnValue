@@ -1,0 +1,18 @@
+# RoboFAC (MINT-SJTU/RoboFAC-dataset). Run conversion first; then preprocess with preprocess_finetune.yaml.
+# Override: --dataset.dataset_path=/path/to/RoboFAC-dataset
+dataset:
+  dataset_path: "deps/RoboFAC-dataset"
+  dataset_name: robofac
+
+output:
+  output_dir: ./robometer_dataset/robofac
+  max_trajectories: null
+  max_frames: 32
+  shortest_edge_size: 240
+  use_video: true
+  fps: 10
+  center_crop: false
+
+hub:
+  push_to_hub: false
+  hub_repo_id: robofac_rbm

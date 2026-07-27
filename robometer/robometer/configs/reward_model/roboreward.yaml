@@ -1,0 +1,11 @@
+# @package _global_
+
+# RoboReward model configuration
+reward_model: "roboreward"
+
+model_path: "teetone/RoboReward-4B"  # Path to RoboReward model (HuggingFace repo ID, e.g., 'teetone/RoboReward-8B' or 'teetone/RoboReward-4B')
+
+model_config:
+  max_new_tokens: 128
+  batch_size: 4
+

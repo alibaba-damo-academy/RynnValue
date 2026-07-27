@@ -1,0 +1,22 @@
+# Requirements for SOAR VLM labeling script
+# Install with: pip install -r vlm_labeling_requirements.txt
+
+# Core ML libraries
+torch>=2.0.0
+transformers>=4.37.0
+accelerate>=0.26.0
+
+# Qwen VL utilities
+qwen-vl-utils
+
+# Image processing
+Pillow>=10.0.0
+torchvision>=0.15.0
+
+# Dataset loading
+tensorflow-datasets>=4.9.0
+tensorflow>=2.13.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.65.0

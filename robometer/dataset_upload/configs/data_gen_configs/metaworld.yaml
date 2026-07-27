@@ -1,0 +1,17 @@
+dataset:
+  dataset_name: metaworld_train
+  dataset_path: mw_policy_ranking_data
+
+output:
+  output_dir: datasets/metaworld_rfm
+  use_video: true  # Convert to MP4 videos
+  fps: 10  # Target frame rate for output videos
+  shortest_edge_size: 240  # Resize videos to this shortest edge
+  center_crop: true  # Don't center crop, maintain aspect ratio
+  max_trajectories: -1  # -1 for all trajectories
+  max_frames: -1  # -1 for all frames
+  num_workers: 2
+
+hub:
+  push_to_hub: true
+  hub_repo_id: metaworld

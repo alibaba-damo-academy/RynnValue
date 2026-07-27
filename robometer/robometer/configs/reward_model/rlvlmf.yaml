@@ -1,0 +1,9 @@
+# @package _global_
+
+# RL-VLM-F model configuration
+reward_model: "rlvlmf"
+
+model_config:
+  vlm_provider: "gemini"  # Options: "gemini", "openai"
+  temperature: 0.0
+

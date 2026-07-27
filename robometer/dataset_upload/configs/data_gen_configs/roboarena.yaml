@@ -1,0 +1,18 @@
+# config.yaml
+dataset:
+  dataset_path: ./datasets/roboarena
+  dataset_name: roboarena_eval_debug_nowrist # This will be the dataset name / data source
+
+output:
+  output_dir: ./robometer_dataset/roboarena_eval_debug_nowrist
+  max_trajectories: -1
+  max_frames: 64
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  num_workers: 8
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: roboarena_eval_debug_nowrist

@@ -1,0 +1,20 @@
+# config.yaml
+dataset:
+  dataset_path: ./datasets/failsafe_data  # Root containing FailPickCube-v1/ FailPushCube-v1/ FailStackCube-v1/ and jsons
+  dataset_name: failsafe
+
+output:
+  output_dir: ./robometer_dataset/failsafe_rfm
+  max_trajectories: -1
+  max_frames: 64
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  num_workers: 4
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: failsafe_rfm
+
+

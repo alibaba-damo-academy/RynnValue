@@ -1,0 +1,2 @@
+uv run python -m dataset_upload.generate_hf_dataset --config_path=dataset_upload/configs/data_gen_configs/molmoact.yaml --dataset.dataset_name molmoact_dataset_tabletop
+uv run python -m dataset_upload.generate_hf_dataset --config_path=dataset_upload/configs/data_gen_configs/molmoact.yaml --dataset.dataset_name molmoact_dataset_household

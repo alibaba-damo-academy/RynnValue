@@ -1,0 +1,10 @@
+# @package _global_
+
+# ReWiND model configuration
+reward_model: "rewind"
+
+model_path: null  # Path to ReWiND model checkpoint (HuggingFace repo ID or local path, required)
+
+model_config:
+  batch_size: 32
+

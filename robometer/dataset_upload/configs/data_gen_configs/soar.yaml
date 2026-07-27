@@ -1,0 +1,20 @@
+# config.yaml
+dataset:
+  dataset_path: ./datasets/soar_data # Root containing rlds/<split>/<version>/
+  dataset_name: soar_rfm
+
+output:
+  output_dir: ./robometer_dataset/soar_rfm
+  max_trajectories: -1
+  max_frames: 32
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+  num_workers: 4
+
+hub:
+  push_to_hub: true
+  hub_repo_id: soar_rfm
+
+

@@ -1,0 +1,18 @@
+# EgoDex dataset configuration
+dataset:
+  dataset_path: "~/part2"  # Local path to EgoDex dataset directory
+  dataset_name: egodex_part2
+
+output:
+  output_dir: robometer_dataset/egodex_rfm
+  max_trajectories: -1
+  max_frames: 32
+  shortest_edge_size: 240
+  use_video: true
+  fps: 5
+  center_crop: false
+  num_workers: 3
+
+hub:
+  push_to_hub: true 
+  hub_repo_id: egodex_rfm

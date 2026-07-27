@@ -1,0 +1,184 @@
+# ==================================================================================
+# Project Metadata
+# Defines core information about the package.
+# ==================================================================================
+[project]
+name = "robometer"
+version = "0.0.1" # You can update this as you release new versions
+description = "Robometer: scalable reward modeling with progress and preference"
+readme = "README.md"
+requires-python = "==3.10.*" # Based on your GitHub repo's setup
+authors = [
+    { name = "Anthony Liang", email = "aliang80@usc.edu" }
+]
+
+# ==================================================================================
+# Dependencies
+# This section lists the direct dependencies of your project.
+# It is best practice to list only the packages your code directly imports,
+# not every package from your environment. Tools like 'uv' or 'pip' will
+# resolve and install the dependencies of these packages automatically.
+# ==================================================================================
+dependencies = [
+    "accelerate>=1.9.0",
+    "datasets==4.1.1",
+    "einops>=0.8.0",
+    "evaluate>=0.4.3",
+    "h5py>=3.10.0",
+    "huggingface-hub[hf-xet]>0.35",
+    "numpy>=1.21.0", # Compatible with modern PyTorch
+    "matplotlib>=3.5.0",
+    "peft",
+    "pyrallis>=0.3.0",
+    "safetensors>=0.6.0rc0",
+    "sentence-transformers>=2.0.0",
+    "tqdm>=4.67.1",
+    "wandb>=0.20.1",
+    "pyyaml>=6.0.0",
+    "rich>=14.0.0",
+    "soundfile>=0.13.1",
+    "ipdb>=0.13.13",
+    "hf_transfer>=0.1.0",
+    "gradio>=4.0.0",
+    "pillow>=9.0.0",
+    "ffmpeg",
+    "termcolor>=3.1.0",
+    "qwen-vl-utils[decord]==0.0.14",
+    "fastapi>=0.116.1",
+    "uvicorn>=0.35.0",
+    "requests>=2.32.4",
+    "google-generativeai",  # For RL-VLM-F baseline (Gemini API)
+    "scipy>=1.15.3",
+    "codetiming>=1.4.0",
+    "robosuite==1.4.0",
+    "imageio>=2.37.0",
+    "omegaconf>=2.3.0",
+    "opencv-python-headless>=4.8.0",
+    "opencv-contrib-python-headless>=4.8.0", # Additional OpenCV modules
+    "einops>=0.8.0",
+    "num2words",
+    "seaborn",
+    "bitsandbytes",
+    "torch==2.8.0",  # Required for Qwen models, xformers, and modern transformers. Use CUDA build on Linux via tool.uv.sources
+    "torchvision",
+    "moviepy",
+    "wandb[media]",
+    "torchcodec==0.7",
+    "decord>=0.6.0",
+    "unsloth>=2025.10",
+    "gymnasium>=1.2.2",
+    "metaworld>=3.0.0",
+    "loguru>=0.7.3",
+    "xformers==0.0.32.post2",
+    "tensorboard",
+    "requests",
+    "hydra-core",
+    "omegaconf",
+    "tensorflow-datasets==4.9.2", # just for oxe and other tfds dataset uploading
+    "tensorflow==2.19", # just for oxe and other tfds dataset uploading
+    "tf-keras>=2.19.0", # just for oxe and other tfds dataset uploading
+    "protobuf<3.21", # just for oxe and other tfds dataset uploading
+
+]
+
+[project.urls]
+Repository = "https://github.com/robometer/robometer"
+
+# ==================================================================================
+# Optional Dependencies
+# These are groups of dependencies for specific purposes, like development or
+# running optional features. Install with `uv pip install .[dev]`
+# ==================================================================================
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+    "pre-commit>=4.0.0",
+    "ipykernel",
+    "ipywidgets",
+]
+quantization = [
+    "bitsandbytes>=0.46.1",  # Linux/Windows only - for model quantization
+]
+# Standard Robometer/training installation (includes transformers and trl)
+robometer = [
+    "transformers>=4.57",
+    "trl==0.20.0",
+]
+# VLAC baseline installation (conflicts with robometer versions - use separate environment)
+vlac = [
+    "transformers<4.52",  # Required by evo-vlac
+    "trl>=0.13,<0.17",  # Required by evo-vlac
+    "evo-vlac @ git+ssh://github.com/InternRobotics/VLAC.git",
+]
+
+# ==================================================================================
+# Build System
+# Specifies how your project should be packaged. Hatchling is a modern,
+# fast, and recommended build backend.
+# ==================================================================================
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["robometer"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+
+# ==================================================================================
+# Tool Configuration
+# Settings for various development tools like 'uv', 'ruff' (linter), etc.
+# ==================================================================================
+
+# Configuration for the 'uv' package manager
+[tool.uv]
+# Declare that robometer and vlac optional dependencies are incompatible
+# They have conflicting trl and transformers version requirements
+conflicts = [
+    [
+        { extra = "robometer" },
+        { extra = "vlac" },
+    ],
+]
+# This section could be used for advanced features like overriding dependencies
+# from your environment if needed, similar to the 'openpi' example.
+#override-dependencies = ["av<16.0.0"]
+
+# Ensure flash-attn builds against the same Torch that's in your env
+[tool.uv.extra-build-dependencies]
+flash-attn = [{ requirement = "torch", match-runtime = true }]
+
+# Tell flash-attn to use a prebuilt wheel instead of compiling CUDA kernels
+[tool.uv.extra-build-variables]
+flash-attn = { FLASH_ATTENTION_SKIP_CUDA_BUILD = "TRUE" }
+
+# Specify PyTorch CUDA index for Linux/Windows (CUDA 12.8 builds)
+[tool.uv.sources]
+torch = { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }
+torchvision = { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+# Tool configuration for the 'ruff' linter and formatter
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+fix = true
+unsafe-fixes = true  # <- allow deletions that might have side effects; optional, use with care
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "RUF"]
+ignore = ["T201"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = true
+
+[tool.ruff.format]
+preview = true

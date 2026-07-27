@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / cache
+__pycache__/
+*.py[cod]
+*$py.class
+core-python-*
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.venv-*/
+venv_*.txt
+
+# Training / evaluation artifacts
+outputs/
+baseline_eval_output/
+unsloth_compiled_cache/
+*.log
+wandb/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tooling
+.qoder/
+.sumi/

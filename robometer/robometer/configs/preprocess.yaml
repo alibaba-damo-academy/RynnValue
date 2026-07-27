@@ -1,0 +1,105 @@
+train_datasets:
+  - "aliangdw/metaworld"
+  - "jesbu1/molmoact_rfm" 
+  - "abraranwar/libero_rfm"
+  - "abraranwar/agibotworld_alpha_headcam_rfm"
+  - "ykorkmaz/libero_failure_rfm"
+  - "jesbu1/ph2d_rfm"
+  - "jesbu1/h2r_rfm"
+  - "anqil/rh20t_subset_rfm"
+  - "jesbu1/roboarena_0825_rfm"
+  - "jesbu1/oxe_rfm"
+  - "jesbu1/galaxea_rfm"
+  - "jesbu1/epic_rfm"
+  - "jesbu1/failsafe_rfm"
+  - "jesbu1/humanoid_everyday_rfm"
+  - "jesbu1/motif_rfm"
+  - "jesbu1/auto_eval_rfm"
+  - "jesbu1/soar_rfm"
+  - "jesbu1/fino_net_rfm"
+  - "jesbu1/racer_rfm"
+  - "jesbu1/roboreward_rfm"
+  - "jesbu1/roboreward_rfm_high_res"
+
+train_subsets:
+  - ["metaworld_train"]
+  - ["molmoact_dataset_household", "molmoact_dataset_tabletop"]
+  - ["libero256_90"]
+  - ["agibotworld"]
+  - ["libero_90_failure"]
+  - ["ph2d"]
+  - ["h2r"]
+  - ["rh20t_human", "rh20t_robot"]
+  - ["roboarena"]
+  - ["oxe_aloha_mobile", "oxe_austin_buds_dataset_converted_externally_to_rlds", "oxe_bc_z", "oxe_berkeley_cable_routing", "oxe_berkeley_fanuc_manipulation", "oxe_berkeley_mvp_converted_externally_to_rlds", "oxe_berkeley_rpt_converted_externally_to_rlds", "oxe_bridge_v2", "oxe_dlr_edan_shared_control_converted_externally_to_rlds", "oxe_droid", "oxe_fractal20220817_data", "oxe_furniture_bench_dataset_converted_externally_to_rlds", "oxe_iamlab_cmu_pickup_insert_converted_externally_to_rlds", "oxe_imperialcollege_sawyer_wrist_cam", "oxe_jaco_play", "oxe_language_table", "oxe_nyu_rot_dataset_converted_externally_to_rlds", "oxe_robo_set", "oxe_stanford_hydra_dataset_converted_externally_to_rlds", "oxe_tokyo_u_lsmo_converted_externally_to_rlds", "oxe_toto", "oxe_ucsd_kitchen_dataset_converted_externally_to_rlds", "oxe_utaustin_mutex"]
+  - ["galaxea_part1_r1_lite", "galaxea_part2_r1_lite", "galaxea_part3_r1_lite", "galaxea_part4_r1_lite", "galaxea_part5_r1_lite"]
+  - ["epic"]
+  - ["failsafe"]
+  - ["humanoid_everyday_rfm"]
+  - ["motif_rfm"]
+  - ["auto_eval_rfm"]
+  - ["soar_rfm"]
+  - ["fino_net"]
+  - ["racer_train"]
+  - ["roboreward_train"]
+  - ["roboreward_train"]
+
+eval_datasets:
+  - "abraranwar/libero_rfm"
+  - "ykorkmaz/libero_failure_rfm"
+  - "jesbu1/oxe_rfm_eval"
+  - "aliangdw/metaworld"
+  - "jesbu1/racer_rfm"
+  - "abraranwar/usc_koch_rewind_rfm"
+  - "aliangdw/usc_xarm_policy_ranking"
+  - "aliangdw/usc_franka_policy_ranking"
+  - "aliangdw/utd_so101_policy_ranking"
+  - "aliangdw/utd_so101_human"
+  #- "jesbu1/roboarena_eval_debug_nowrist"
+  - "jesbu1/hand_paired_rfm"
+  - "jesbu1/mit_franka_p-rank_rfm"
+  - "jesbu1/utd_so101_clean_policy_ranking_top"
+  - "jesbu1/utd_so101_clean_policy_ranking_wrist"
+  - "jesbu1/usc_koch_human_robot_paired"
+  - "jesbu1/usc_koch_p_ranking_rfm"
+  - "jesbu1/roboreward_rfm"
+  - "jesbu1/roboreward_rfm_high_res"
+  - "jesbu1/rfm_new_mit_franka_rfm_nowrist"
+  - "ykorkmaz/usc_trossen_rfm"
+
+eval_subsets:
+  - ["libero256_10", "libero256_goal", "libero256_object", "libero256_spatial"]
+  - ["libero_10_failure", "libero_goal_failure", "libero_object_failure", "libero_spatial_failure"]
+  - ["oxe_bc_z_eval", "oxe_berkeley_cable_routing_eval", "oxe_bridge_v2_eval", "oxe_jaco_play_eval", "oxe_toto_eval", "oxe_viola_eval"]
+  - ["metaworld_eval"]
+  - ["racer_val"]
+  - ["usc_koch_rewind"]
+  - ["usc_xarm_policy_ranking"]
+  - ["usc_franka_policy_ranking"]
+  - ["utd_so101_policy_ranking"]
+  - ["utd_so101_human"]
+  #- ["roboarena_eval_debug_nowrist"]
+  - ["hand_paired_robot", "hand_paired_human"]
+  - ["mit_franka_p-rank_rfm"]
+  - ["utd_so101_clean_policy_ranking_top"]
+  - ["utd_so101_clean_policy_ranking_wrist"]
+  - ["usc_koch_human_robot_paired_human", "usc_koch_human_robot_paired_robot"]
+  - ["usc_koch_p_ranking_all"]
+  - ["roboreward_val", "roboreward_test"]
+  - ["roboreward_val", "roboreward_test"]
+  - ["rfm_new_mit_franka_rfm_nowrist"]
+  - ["usc_trossen"]
+
+max_frames_for_preprocessing: 32
+video_frame_sampling: "uniform"
+num_proc: 1
+num_threads: 8
+force_reprocess: false
+cache_dir: /path/to/robometer/processed_datasets
+
+# Embedding preprocessing parameters
+precompute_embeddings: true
+embeddings_cache_dir: "embeddings"
+dinov2_model: "facebook/dinov2-base"
+sentence_model: "sentence-transformers/all-MiniLM-L12-v2"
+embedding_batch_size: 64

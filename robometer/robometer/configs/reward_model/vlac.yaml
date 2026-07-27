@@ -1,0 +1,17 @@
+# @package _global_
+
+# VLAC model configuration
+reward_model: "vlac"
+
+model_path: "InternRobotics/VLAC"  # Path to VLAC model checkpoint (HuggingFace repo ID or local path)
+
+model_config:
+  device: "cuda:0"
+  model_type: "internvl2"
+  temperature: 0.5
+  # top_k: 1
+  batch_size: 32
+  skip: 1 
+  frame_skip: true
+  use_images: false  # If true, use image mode; if false, use video mode
+

@@ -1,0 +1,19 @@
+# UTD SO101 Clean Policy Ranking Dataset Configuration - Top View
+dataset:
+  dataset_path: ~/projects/robometer/datasets/utd_prank
+  dataset_name: utd_so101_clean_policy_ranking_top
+
+output:
+  output_dir: ./robometer_dataset/utd_so101_clean_policy_ranking_top
+  max_trajectories: -1  # -1 for all trajectories
+  max_frames: 64
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+  num_workers: 4
+
+hub:
+  push_to_hub: true
+  hub_repo_id: utd_so101_clean_policy_ranking_top
+

@@ -1,0 +1,15 @@
+# AgiBotWorld dataset configuration
+dataset:
+  dataset_path: "agibot-world/AgiBotWorld-Alpha"  # HuggingFace dataset name for streaming
+  dataset_name: agibotworld
+
+output:
+  output_dir: datasets/agibotworld_dataset
+  max_trajectories: 100  # Limit for testing, increase for full dataset
+  max_frames: 64
+  use_video: true
+  fps: 30
+
+hub:
+  push_to_hub: true  # Set to true when ready to upload
+  hub_repo_id: agibotworld_rfm

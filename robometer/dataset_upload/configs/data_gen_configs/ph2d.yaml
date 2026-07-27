@@ -1,0 +1,19 @@
+# config.yaml
+dataset:
+  dataset_path: ./ph2d  # Root with sequence subfolders each containing HDF5 files
+  dataset_name: ph2d
+
+output:
+  output_dir: ./robometer_dataset/ph2d_rfm
+  max_trajectories: -1
+  max_frames: 64  # use all frames in each sequence
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: ph2d_rfm
+
+

@@ -1,0 +1,13 @@
+# accelerate_config.yaml — DDP for LLM-only fine-tuning
+
+compute_environment: LOCAL_MACHINE
+distributed_type: MULTI_GPU        # ← DDP
+num_processes: 2                   # ← set to #GPUs (example: 2)
+num_machines: 1
+machine_rank: 0
+main_training_function: main
+mixed_precision: bf16
+use_cpu: false
+
+# (Optional) leave dynamo off unless you’ve profiled it
+dynamo_backend: "no"

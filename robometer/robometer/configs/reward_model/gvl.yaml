@@ -1,0 +1,14 @@
+# @package _global_
+
+# GVL model configuration
+reward_model: "gvl"
+
+model_config:
+  # api_key: null  # Will use GEMINI_API_KEY or OPENAI_API_KEY env var based on provider
+  provider: "gemini"  # Options: "gemini" or "openai"
+  model_name: "gemini-2.5-flash-lite"  # Gemini: gemini-2.0-flash, gemini-1.5-pro | OpenAI: gpt-4o, gpt-4o-mini
+  offset: 0.5
+  # Retry settings for API throttling
+  max_retries: 5       # Max retry attempts on 429/5xx errors
+  base_delay: 1.0      # Base delay in seconds for exponential backoff
+  max_delay: 60.0      # Maximum delay between retries

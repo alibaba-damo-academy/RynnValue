@@ -1,0 +1,19 @@
+# config.yaml
+dataset:
+  dataset_path: ./datasets/RACER
+  dataset_name: racer_val
+
+output:
+  output_dir: ./robometer_dataset/racer_rfm
+  max_trajectories: -1
+  max_frames: 64
+  use_video: true
+  fps: 2
+  shortest_edge_size: 240
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: racer_rfm
+
+

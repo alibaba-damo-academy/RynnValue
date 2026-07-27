@@ -1,0 +1,17 @@
+# config.yaml
+dataset:
+  dataset_path: ./humanandrobot/data/v1
+  dataset_name: h2r  # This will be the dataset name / data source
+
+output:
+  output_dir: datasets/h2r_rfm
+  max_trajectories: -1
+  max_frames: 64
+  use_video: true
+  fps: 10
+  shortest_edge_size: 240
+  center_crop: false
+
+hub:
+  push_to_hub: true
+  hub_repo_id: h2r_rfm
