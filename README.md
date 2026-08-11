@@ -1,7 +1,7 @@
 # RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance
 
 <p align="center">
-&nbsp;<a href="https://alibaba-damo-academy.github.io/RynnValue.github.io">🏠 Homepage</a>&nbsp; | &nbsp;<a href="https://github.com/alibaba-damo-academy/RynnValue">💻 GitHub</a>&nbsp; | &nbsp;<a href="https://huggingface.co/collections/Alibaba-DAMO-Academy/rynnvalue">🤗 HuggingFace</a>&nbsp; | &nbsp;<a href="https://www.modelscope.cn/collections/DAMO_Academy/RynnValue">🔮 ModelScope</a>&nbsp; | &nbsp;<a href="https://arxiv.org/abs/2607.06559">📄 ArXiv</a>&nbsp;
+&nbsp;<a href="https://alibaba-damo-academy.github.io/RynnValue.github.io">🏠 Homepage</a>&nbsp; | &nbsp;<a href="https://github.com/alibaba-damo-academy/RynnValue">💻 GitHub</a>&nbsp; | &nbsp;<a href="https://huggingface.co/collections/Alibaba-DAMO-Academy/rynnvalue">🤗 HuggingFace</a>&nbsp; | &nbsp;<a href="https://www.modelscope.cn/collections/DAMO_Academy/RynnValue">🔮 ModelScope</a>&nbsp; | &nbsp;<a href="https://arxiv.org/abs/2608.09853">📄 ArXiv</a>&nbsp;
 </p>
 
 **A general-purpose value foundation model for robot manipulation — and the full toolchain to evaluate it and use it for reinforcement learning of VLA policies.**
@@ -20,7 +20,7 @@ This repository bundles the complete stack:
 |---|---|---|
 | **RynnValue model** | [`rynn_value/`](rynn_value/) | HuggingFace-compatible model definition (config / model / processor), value heads, value tokenizer, custom attention |
 | **Inference demo** | [`rynn_infer/`](rynn_infer/) | Run RynnValue on any video + instruction, render an annotated video with the live remaining-time curve |
-| **Reward-model benchmark** | [`robometer/`](robometer/) | Fork of [Robometer](https://arxiv.org/abs/2603.02115) with a `rynnvalue` baseline adapter: reward alignment, policy ranking, and confusion-matrix evaluation, plus an HTTP reward server |
+| **Reward-model benchmark** | [`robometer/`](robometer/) | Fork of [Robometer](https://github.com/robometer/robometer-policy-learning) with a `rynnvalue` baseline adapter: reward alignment, policy ranking, and confusion-matrix evaluation, plus an HTTP reward server |
 | **VLA policy RL** | [`pi-rl/`](pi-rl/) | Fork of [openpi](https://github.com/Physical-Intelligence/openpi) (π₀ / π₀-FAST / π₀.₅) extended with offline **IQL** fine-tuning and online **DSRL-style SAC** latent steering, on LIBERO, RoboTwin, and real Franka robots |
 | **Tools** | [`tools/`](tools/) | Convert training checkpoints to standalone HuggingFace `trust_remote_code` models |
 | **Example** | [`example/`](example/) | Demo video for the inference script |
@@ -427,7 +427,7 @@ Checkpoint release is in progress; update the paths above once the weights are p
 This repository builds on outstanding open-source work:
 
 - [**openpi**](https://github.com/Physical-Intelligence/openpi) (Physical Intelligence) — π₀ / π₀-FAST / π₀.₅ VLA models and training stack (Apache-2.0; `pi-rl/`).
-- [**Robometer**](https://arxiv.org/abs/2603.02115) — "Scaling General-Purpose Robotic Reward Models via Trajectory Comparisons": benchmark, RBM baselines, and the RBM-1M dataset (`robometer/`).
+- [**Robometer**](https://github.com/robometer/robometer-policy-learning) — "Scaling General-Purpose Robotic Reward Models via Trajectory Comparisons": benchmark, RBM baselines, and the RBM-1M dataset (`robometer/`).
 - [**jaxrl2**](https://github.com/ikostrikov/jaxrl2) — IQL / SAC agents (vendored in `pi-rl/third_party/jaxrl2/`).
 - [**Qwen3-VL**](https://github.com/QwenLM/Qwen3-VL) — the underlying vision-language architecture of the RynnBrain backbone.
 - Simulation benchmarks: [LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO), [RoboTwin](https://github.com/TianxingChen/RoboTwin), [DROID](https://droid-dataset.github.io/), gym-aloha.
@@ -440,7 +440,7 @@ This repository builds on outstanding open-source work:
 
 ## Citation
 
-If you find RynnValue useful, please cite this repository (see [`CITATION.cff`](CITATION.cff)):
+If you find RynnValue useful, please cite:
 
 ```bibtex
 @article{rynnvalue2026,
@@ -450,5 +450,3 @@ If you find RynnValue useful, please cite this repository (see [`CITATION.cff`](
   year   = {2026},
 }
 ```
-
-A paper citation entry will be added upon publication.
