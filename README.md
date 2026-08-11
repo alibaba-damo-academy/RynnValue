@@ -1,7 +1,7 @@
 # RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance
 
 <p align="center">
-&nbsp;<a href="https://alibaba-damo-academy.github.io/RynnValue.github.io">🏠 Homepage</a>&nbsp; | &nbsp;<a href="https://github.com/alibaba-damo-academy/RynnValue">💻 GitHub</a>&nbsp; | &nbsp;<a href="https://huggingface.co/collections/Alibaba-DAMO-Academy/rynnvalue">🤗 HuggingFace</a>&nbsp; | &nbsp;<a href="https://www.modelscope.cn/collections/DAMO_Academy/RynnValue">🔮 ModelScope</a>&nbsp;
+&nbsp;<a href="https://alibaba-damo-academy.github.io/RynnValue.github.io">🏠 Homepage</a>&nbsp; | &nbsp;<a href="https://github.com/alibaba-damo-academy/RynnValue">💻 GitHub</a>&nbsp; | &nbsp;<a href="https://huggingface.co/collections/Alibaba-DAMO-Academy/rynnvalue">🤗 HuggingFace</a>&nbsp; | &nbsp;<a href="https://www.modelscope.cn/collections/DAMO_Academy/RynnValue">🔮 ModelScope</a>&nbsp; | &nbsp;&nbsp; 📄 <a href="https://arxiv.org/abs/2607.06559"><b>ArXiv</b></a>&nbsp;
 </p>
 
 **A general-purpose value foundation model for robot manipulation — and the full toolchain to evaluate it and use it for reinforcement learning of VLA policies.**
@@ -443,12 +443,11 @@ This repository builds on outstanding open-source work:
 If you find RynnValue useful, please cite this repository (see [`CITATION.cff`](CITATION.cff)):
 
 ```bibtex
-@software{rynnvalue2026,
-  title   = {RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance},
-  author  = {{RynnValue Team, Alibaba}},
-  year    = {2026},
-  version = {0.1.0},
-  url     = {https://github.com/alibaba-damo-academy/RynnValue}
+@article{rynnvalue2026,
+  title  = {RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance},
+  author = {Dongchi Huang and Hongyin Zhang and Bohan Hou and Siteng Huang and Zhian Su and Hang Guo and Tong Lu and Zhaofeng Xu and Jiahao Tang and Jianfei Yang and Donglin Wang and Peixi Peng and Mingxiu Chen and Deli Zhao and Xin Li},
+  journal= {arXiv preprint arXiv:2608.09853},
+  year   = {2026},
 }
 ```
 
