@@ -417,18 +417,19 @@ uv run python tools/convert_rynn_value_lang_to_hf.py \
 
 | Model | Backbone | Description |
 |---|---|---|
-| `RynnValue-4B` | RynnBrain 4B | Remaining-time value model with absolute + relative distributional heads and Analysis generation |
-| `RynnValue-8B` | RynnBrain 8B | Remaining-time value model with absolute + relative distributional heads and Analysis generation |
+| [RynnValue-4B](https://huggingface.co/Alibaba-DAMO-Academy/RynnValue-4B) | [RynnBrain-4B](https://huggingface.co/Alibaba-DAMO-Academy/RynnBrain-4B) | Remaining-time value model with absolute + relative distributional heads and Analysis generation |
+| [RynnValue-8B](https://huggingface.co/Alibaba-DAMO-Academy/RynnValue-8B) | [RynnBrain-8B](https://huggingface.co/Alibaba-DAMO-Academy/RynnBrain-8B) | Remaining-time value model with absolute + relative distributional heads and Analysis generation |
 
 Checkpoint release is in progress; update the paths above once the weights are published.
 
 ## Acknowledgements
 
-This repository builds on outstanding open-source work:
+This repository is built on top of the following open-source works:
 
 - [**openpi**](https://github.com/Physical-Intelligence/openpi) (Physical Intelligence) — π₀ / π₀-FAST / π₀.₅ VLA models and training stack (Apache-2.0; `pi-rl/`).
 - [**Robometer**](https://github.com/robometer/robometer-policy-learning) — "Scaling General-Purpose Robotic Reward Models via Trajectory Comparisons": benchmark, RBM baselines, and the RBM-1M dataset (`robometer/`).
 - [**jaxrl2**](https://github.com/ikostrikov/jaxrl2) — IQL / SAC agents (vendored in `pi-rl/third_party/jaxrl2/`).
+- [**RynnBrain**](https://github.com/alibaba-damo-academy/RynnBrain) - Open Embodied Foundation Models
 - [**Qwen3-VL**](https://github.com/QwenLM/Qwen3-VL) — the underlying vision-language architecture of the RynnBrain backbone.
 - Simulation benchmarks: [LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO), [RoboTwin](https://github.com/TianxingChen/RoboTwin), [DROID](https://droid-dataset.github.io/), gym-aloha.
 
