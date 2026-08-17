@@ -115,6 +115,7 @@ class RynnValue:
         confusion_score_mode: str = "match_binary",
         use_fuse: bool = False,
         fuse_lambda: float = 0.5,
+        attn_implementation: Optional[str] = None,
     ):
         if confusion_score_mode not in ("match_binary", "normalized_value"):
             raise ValueError(
@@ -122,7 +123,7 @@ class RynnValue:
                 "Expected 'match_binary' or 'normalized_value'."
             )
 
-        model, processor = self._load_model(model_path, checkpoint_path)
+        model, processor = self._load_model(model_path, checkpoint_path, attn_implementation)
 
         self.model = model
         self.processor = processor
@@ -143,7 +144,8 @@ class RynnValue:
         logger.info(f"RynnValue model loaded on device: {self.model.device}")
         logger.info(f"  stride={self.stride}, num_frames={self.num_frames}, mode={mode}, "
                     f"max_new_tokens={self.max_new_tokens}, confusion_score_mode={self.confusion_score_mode}, "
-                    f"use_fuse={self.use_fuse}, fuse_lambda={self.fuse_lambda}")
+                    f"use_fuse={self.use_fuse}, fuse_lambda={self.fuse_lambda}, "
+                    f"attn_implementation={attn_implementation or 'model-default'}")
         if self._camera_desc_lookup:
             logger.info(f"  camera_desc_lookup: {len(self._camera_desc_lookup)} entries")
 
@@ -170,21 +172,33 @@ class RynnValue:
     # ------------------------------------------------------------------
 
     def _load_model(
-        self, model_path: str, checkpoint_path: Optional[str]
+        self,
+        model_path: str,
+        checkpoint_path: Optional[str],
+        attn_implementation: Optional[str],
     ) -> Tuple[PreTrainedModel, ProcessorMixin]:
         if checkpoint_path is not None:
-            return self._load_from_checkpoint(checkpoint_path)
-        return self._load_from_hf(model_path)
+            return self._load_from_checkpoint(checkpoint_path, attn_implementation)
+        return self._load_from_hf(model_path, attn_implementation)
 
     @staticmethod
-    def _load_from_hf(model_path: str) -> Tuple[PreTrainedModel, ProcessorMixin]:
+    def _load_from_hf(
+        model_path: str, attn_implementation: Optional[str]
+    ) -> Tuple[PreTrainedModel, ProcessorMixin]:
         logger.info(f"Loading RynnValue model from HuggingFace: {model_path}")
+
+        # Without an override the exported config self-selects the custom
+        # pred_slot_isolated_eager attention.
+        hf_kwargs = {}
+        if attn_implementation:
+            hf_kwargs["attn_implementation"] = attn_implementation
 
         model = AutoModel.from_pretrained(
             model_path,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             device_map="auto",
+            **hf_kwargs,
         )
         processor = AutoProcessor.from_pretrained(
             model_path, trust_remote_code=True
@@ -194,7 +208,9 @@ class RynnValue:
         return model, processor
 
     @staticmethod
-    def _load_from_checkpoint(checkpoint_path: str) -> Tuple[PreTrainedModel, ProcessorMixin]:
+    def _load_from_checkpoint(
+        checkpoint_path: str, attn_implementation: Optional[str]
+    ) -> Tuple[PreTrainedModel, ProcessorMixin]:
         """Load from a fine-tuned checkpoint directory containing ``model.pt``.
 
         HF artifacts (config, tokenizer, processor, custom code) are expected in
@@ -205,6 +221,10 @@ class RynnValue:
         hf_artifacts_path = Path(checkpoint_path).parent / "huggingface"
 
         hf_config = AutoConfig.from_pretrained(hf_artifacts_path, trust_remote_code=True)
+        # Without an override the config class defaults to (and persists) the
+        # custom pred_slot_isolated_eager attention.
+        if attn_implementation:
+            hf_config._attn_implementation = attn_implementation
         processor = AutoProcessor.from_pretrained(
             hf_artifacts_path, trust_remote_code=True
         )
@@ -581,7 +601,7 @@ class RynnValue:
                 result = [0.0] * len(result)
                 logger.info(f"RynnValue: confusion normalized_value, match={match_val} -> 0.0")
         elif is_confusion_sample:
-            # match_binary variant: 1.0 if Match:Yes else 0.0 (bounded, no -100 sentinel).。
+            # match_binary variant: 1.0 if Match:Yes else 0.0 (bounded, no -100 sentinel).
 
             match_is_yes = (match_val or "").lower() == "yes"
             result = [1.0 if match_is_yes else 0.0] * len(result)

@@ -9,5 +9,6 @@ model_config:
   num_frames: 8
   mode: "absolute"
   camera_desc_lookup_path: null
+  attn_implementation: null  # null=model default (pred_slot_isolated_eager); "eager"/"sdpa" to override
   max_new_tokens: 128
   confusion_score_mode: "match_binary"  # or "normalized_value"

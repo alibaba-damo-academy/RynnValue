@@ -282,38 +282,68 @@ entropy        = out.value.entropy                           # per-frame uncerta
 
 ## Evaluation with Robometer
 
-The `robometer/` fork adds RynnValue as a first-class baseline (`robometer/robometer/evals/baselines/rynnvalue.py`, Hydra config `reward_model=rynnvalue`). Ready-made launchers live in `robometer/rynnvalue_eval/`.
+The `robometer/` fork adds RynnValue as a first-class baseline (`robometer/robometer/evals/baselines/rynnvalue.py`, Hydra config `reward_model=rynnvalue`). Ready-made example commands live in `robometer/rynnvalue_eval/` (plus `start_server.sh` for the reward server).
 
-**Policy ranking** (does the value model rank better policies higher?):
+**Policy ranking** (does the value model rank better policies higher?) — example commands in `rynnvalue_eval/policy_ranking.sh`; the released-model run:
 
 ```bash
 cd robometer
-ROBOMETER_PROCESSED_DATASETS_PATH=/path/to/processed/Robometer \
+ROBOMETER_PROCESSED_DATASETS_PATH=/path/to/processed_datasets \
 python robometer/evals/run_baseline_eval.py \
     'reward_model=rynnvalue' \
-    'model_path=/path/to/RynnValue-8B' \
+    'model_path=Alibaba-DAMO-Academy/RynnValue-8B' \
     'custom_eval.eval_types=[policy_ranking]' \
     'custom_eval.policy_ranking=[rbm-1m-ood]' \
+    'custom_eval.use_frame_steps=false' \
+    'custom_eval.pad_frames=false' \
+    'custom_eval.num_examples_per_quality_pr=1000' \
     'max_frames=8' \
-    'model_config.conversation_type=Progress'
+    'model_config.checkpoint_path=null' \
+    'model_config.mode=absolute' \
+    'model_config.stride=2' \
+    'model_config.num_frames=8' \
+    'model_config.camera_desc_lookup_path=./extracted_meta_with_descriptions.json'
 ```
 
-**Confusion matrix** (cross-task instruction/video matching). Two scoring modes are supported via `model_config.confusion_score_mode`:
+Two optional `model_config` fields: `camera_desc_lookup_path=extracted_meta_with_descriptions.json` supplies the per-trajectory camera descriptions used by RBM-EVAL-OOD, and `attn_implementation` (`eager` / `sdpa`) overrides the attention implementation, defaulting to the model's own `pred_slot_isolated_eager` value-isolation attention. To evaluate a fine-tuned raw checkpoint instead, set `model_config.checkpoint_path=/path/to/checkpoint_model_XXXXXX` (a `model.pt` directory whose sibling `huggingface/` holds the processor/config artifacts).
+
+**Confusion matrix** (cross-task instruction/video matching) — example commands in `rynnvalue_eval/confusion_matrix.sh`, one per scoring mode (`model_config.confusion_score_mode`):
 
 - `match_binary` — score 1.0 iff the Analysis verdict is `Match: Yes`;
 - `normalized_value` — the value head normalized to `[0, 1]` (`1 − t/t_max`) on matches, 0 otherwise.
 
 ```bash
+cd robometer
+ROBOMETER_PROCESSED_DATASETS_PATH=/path/to/processed_datasets \
 python robometer/evals/run_baseline_eval.py \
     'reward_model=rynnvalue' \
-    'model_path=/path/to/RynnValue-8B' \
+    'model_path=Alibaba-DAMO-Academy/RynnValue-8B' \
     'custom_eval.eval_types=[confusion_matrix]' \
     'custom_eval.confusion_matrix=[[...dataset ids...]]' \
     'max_frames=8' \
+    'model_config.stride=2' \
+    'model_config.num_frames=8' \
+    'model_config.camera_desc_lookup_path=./extracted_meta_with_descriptions.json' \
     'model_config.confusion_score_mode=match_binary'
 ```
 
-See `robometer/rynnvalue_eval/*.sh` for complete examples and `robometer/eval_commands/` for the other baselines. Dataset converters for LIBERO, AgiBotWorld, and custom datasets (DROID / Bridge style) live in `robometer/dataset_upload/`.
+See `robometer/eval_commands/` for the other baselines. Dataset converters for LIBERO, AgiBotWorld, and custom datasets (DROID / Bridge style) live in `robometer/dataset_upload/`.
+
+### Policy Ranking Reproduction Results
+
+Reproduced results of the released RynnValue-8B checkpoint on RBM-EVAL-OOD policy ranking (`max_frames=8`, `stride=2`, `num_frames=8`, per-trajectory camera descriptions):
+
+| Dataset | `pred_slot_isolated_eager` | `eager` | `sdpa` |
+|---|---|---|---|
+| usc_koch_p_ranking_all (rfm) | 0.483 | **0.555** | 0.539 |
+| rfm_new_mit_franka | 0.468 | **0.510** | 0.492 |
+| usc_franka | 0.625 | **0.667** | **0.667** |
+| usc_trossen | 1.000 | 1.000 | 1.000 |
+| usc_xarm | 0.472 | 0.472 | **0.500** |
+| utd_so101_clean_top | 0.833 | 0.833 | 0.833 |
+| **Average** | 0.647 | **0.673** | 0.672 |
+
+Kendall's τ (last-frame), reproduced via `rynnvalue_eval/policy_ranking.sh`; the columns correspond to `model_config.attn_implementation` unset (model default `pred_slot_isolated_eager`), `=eager`, and `=sdpa`.
 
 ## Reward Server
 

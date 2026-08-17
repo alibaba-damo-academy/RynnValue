@@ -186,6 +186,15 @@ class RynnValueConfig:
         metadata={"help": "Path to JSON file with per-trajectory camera_description lookup (id -> camera_description)"},
     )
 
+    attn_implementation: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Attention implementation override: null keeps the model-config default "
+            "(pred_slot_isolated_eager); 'eager'/'sdpa'/etc. are passed through to transformers. "
+            "'eager' reproduces the legacy (pre-isolation) eval numbers."
+        },
+    )
+
     max_new_tokens: int = field(
         default=128,
         metadata={"help": "Max tokens generated for the Analysis block (description/match/success) in compute_progress"},
