@@ -209,23 +209,6 @@ class RynnValueConfig:
         },
     )
 
-    use_fuse: bool = field(
-        default=False,
-        metadata={
-            "help": "If True, fuse the absolute remaining-time head with the relative per-step head via "
-            "bidirectional TD(lambda) (fuse_td_lambda) in compute_progress. Requires a checkpoint that "
-            "exposes a relative value head; no-ops otherwise."
-        },
-    )
-
-    fuse_lambda: float = field(
-        default=0.5,
-        metadata={
-            "help": "Lambda for TD(lambda) fusion when use_fuse=True. 0 leans on the absolute head one step "
-            "away; 1 integrates the relative head from each anchor. Ignored when use_fuse=False."
-        },
-    )
-
 
 @dataclass
 class RBMConfig:

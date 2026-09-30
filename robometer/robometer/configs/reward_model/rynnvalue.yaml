@@ -4,7 +4,7 @@ reward_model: "rynnvalue"
 model_path: ""
 
 model_config:
-  checkpoint_path: ""
+  checkpoint_path: null
   stride: 1
   num_frames: 8
   mode: "absolute"

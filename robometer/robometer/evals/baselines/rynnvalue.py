@@ -58,43 +58,6 @@ def parse_analysis(text: str) -> dict:
         "success": _first(_SUCCESS_RE),
     }
 
-def fuse_td_lambda(pred_value, pred_relative, lam=0.5):
-    """Bidirectional TD(lambda) fusion of the absolute and relative value heads.
-
-    ``pred_value`` (``a``, length N) is the per-frame remaining time; ``pred_relative``
-    (``r``, length N-1) is the per-step elapsed time with ``r[i] ~= a[i] - a[i+1]``.
-
-    A backward lambda-return anchored on the terminal value ``a[-1]`` and a forward
-    lambda-return anchored on the initial value ``a[0]`` are averaged so that the
-    integration drift of each direction is cancelled near the opposite end.
-    ``lam=0`` leans on the absolute head one step away; ``lam=1`` integrates the
-    relative head from each anchor.
-    """
-    a = list(pred_value)
-    n = len(a)
-    if pred_relative is None or n < 2:
-        return a
-    r = list(pred_relative)
-    if len(r) != n - 1:
-        print(
-            f"[fuse_td_lambda] skip: len(pred_relative)={len(r)} != N-1={n - 1}"
-        )
-        return a
-
-    # Backward pass, anchored on the terminal value a[-1].
-    backward = [0.0] * n
-    backward[n - 1] = a[n - 1]
-    for i in range(n - 2, -1, -1):
-        backward[i] = r[i] + (1.0 - lam) * a[i + 1] + lam * backward[i + 1]
-
-    # Forward pass, anchored on the initial value a[0]. Direction reversed => -r.
-    forward = [0.0] * n
-    forward[0] = a[0]
-    for i in range(1, n):
-        forward[i] = -r[i - 1] + (1.0 - lam) * a[i - 1] + lam * forward[i - 1]
-
-    return [0.5 * (backward[i] + forward[i]) for i in range(n)]
-
 class RynnValue:
     """RynnValue baseline for progress reward prediction.
 
@@ -113,8 +76,6 @@ class RynnValue:
         camera_desc_lookup_path: Optional[str] = None,
         max_new_tokens: int = 128,
         confusion_score_mode: str = "match_binary",
-        use_fuse: bool = False,
-        fuse_lambda: float = 0.5,
         attn_implementation: Optional[str] = None,
     ):
         if confusion_score_mode not in ("match_binary", "normalized_value"):
@@ -132,8 +93,6 @@ class RynnValue:
         self.mode = mode
         self.max_new_tokens = max_new_tokens
         self.confusion_score_mode = confusion_score_mode
-        self.use_fuse = use_fuse
-        self.fuse_lambda = fuse_lambda
 
         # Per-trajectory camera description lookup (id -> camera_description)
         self._camera_desc_lookup = self._load_camera_desc_lookup(camera_desc_lookup_path)
@@ -144,7 +103,6 @@ class RynnValue:
         logger.info(f"RynnValue model loaded on device: {self.model.device}")
         logger.info(f"  stride={self.stride}, num_frames={self.num_frames}, mode={mode}, "
                     f"max_new_tokens={self.max_new_tokens}, confusion_score_mode={self.confusion_score_mode}, "
-                    f"use_fuse={self.use_fuse}, fuse_lambda={self.fuse_lambda}, "
                     f"attn_implementation={attn_implementation or 'model-default'}")
         if self._camera_desc_lookup:
             logger.info(f"  camera_desc_lookup: {len(self._camera_desc_lookup)} entries")
@@ -560,10 +518,6 @@ class RynnValue:
         # ---- Extract value predictions ------------------------------------
         pred_value = self._reduce_pred_value(outputs.value.pred_value)
 
-        # ---- Optional bidirectional TD(lambda) fusion with relative head --
-        if self.use_fuse:
-            pred_value = self._fuse_with_relative(pred_value, outputs)
-
         # ---- Apply mode transform -----------------------------------------
         raw_pred_value = pred_value  # raw remaining-time (pre-transform), used by normalized_value
         pred_value = self._apply_mode(pred_value)
@@ -672,23 +626,6 @@ class RynnValue:
         elif pred_value.dim() == 2:
             pred_value = pred_value[:, 0]
         return pred_value
-
-    def _fuse_with_relative(self, pred_value: torch.Tensor, outputs) -> torch.Tensor:
-        """Blend the absolute remaining-time head with the relative per-step head.
-
-        Returns ``pred_value`` unchanged when the checkpoint exposes no relative
-        head; :func:`fuse_td_lambda` itself no-ops on any per-step length mismatch.
-        """
-        relative = getattr(outputs, "relative", None)
-        pred_relative = getattr(relative, "pred_value", None) if relative is not None else None
-        if pred_relative is None:
-            logger.warning("RynnValue: use_fuse=True but the model exposes no relative head; skipping fusion.")
-            return pred_value
-
-        pred_relative = self._reduce_pred_value(pred_relative)
-        fused = fuse_td_lambda(pred_value.tolist(), pred_relative.tolist(), lam=self.fuse_lambda)
-        logger.info(f"RynnValue: fused absolute + relative heads (fuse_lambda={self.fuse_lambda})")
-        return torch.tensor(fused, dtype=pred_value.dtype, device=pred_value.device)
 
     def _apply_mode(self, pred_value: torch.Tensor, mode: Optional[str] = None) -> torch.Tensor:
         """Transform raw remaining-time predictions according to ``mode`` (defaults to ``self.mode``)."""

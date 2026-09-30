@@ -826,6 +826,85 @@ class OptimizedFrankaDualRLInputsV2(transforms.DataTransformFn):
         return inputs
 
 
+@dataclasses.dataclass(frozen=True)
+class OptimizedFrankaMixedOptimizedV2Inputs(transforms.DataTransformFn):
+    """Mixed single/dual-arm inputs for multi-task BC over optimized-v2 Franka repos.
+
+    Single-arm (arm7+grip1) and dual-arm (arm14+grip2) samples are unified into the dual
+    16-dim action layout ``[left_arm(7), right_arm(7), grip_l(1), grip_r(1)]`` — single-arm
+    rows zero-pad the right arm/gripper and mask out the right cameras via ``image_mask``.
+    Like the other v2 transforms, no state is fed to the model (dummy zero state) and the
+    prompt is the task string only.
+
+    This is the input transform used by the filter-BC data config: the frame whitelist is
+    applied at data-loading time, so the transform itself stays plain BC.
+    """
+
+    model_type: _model.ModelType
+    # Arm-mode override for inference ("single"/"dual"); "auto" detects from the data.
+    arm_mode: str = "auto"
+
+    def _detect_arm_mode(self, data: dict) -> str:
+        if self.arm_mode != "auto":
+            return self.arm_mode
+        if "action.arm" in data:
+            return "dual" if np.asarray(data["action.arm"]).shape[-1] >= 14 else "single"
+        # Inference: fall back to whether the right wrist camera carries any content.
+        right_wrist = data.get("observation.images.right_wrist")
+        if right_wrist is not None and np.asarray(right_wrist).any():
+            return "dual"
+        return "single"
+
+    def __call__(self, data: dict) -> dict:
+        dual = self._detect_arm_mode(data) == "dual"
+
+        left_side = _parse_image(data["observation.images.left_side"])
+        left_wrist = _parse_image(data["observation.images.left_wrist"])
+        right_wrist = _parse_image(data["observation.images.right_wrist"]) if dual else np.zeros_like(left_side)
+        zero_img = np.zeros_like(left_side)
+
+        dummy_state = np.zeros((1,), dtype=np.float32)
+        inputs: dict = {
+            "state": dummy_state,
+            "image": {
+                "left_side_0_rgb": left_side,
+                "left_wrist_0_rgb": left_wrist,
+                "right_side_0_rgb": zero_img,
+                "right_wrist_0_rgb": right_wrist,
+            },
+            "image_mask": {
+                "left_side_0_rgb": np.True_,
+                "left_wrist_0_rgb": np.True_,
+                "right_side_0_rgb": np.False_,
+                "right_wrist_0_rgb": np.True_ if dual else np.False_,
+            },
+        }
+
+        if "action.arm" in data:
+            arm = np.asarray(data["action.arm"], dtype=np.float32)
+            gripper = np.asarray(data["action.gripper"], dtype=np.float32)
+            while gripper.ndim < arm.ndim:
+                gripper = gripper[..., None]
+            if dual:
+                inputs["actions"] = np.concatenate([arm, gripper], axis=-1)
+            else:
+                # Unify into the dual layout: zero-pad the right arm + right gripper.
+                unified = np.zeros(arm.shape[:-1] + (DUAL_ARM_DIM,), dtype=np.float32)
+                unified[..., :7] = arm
+                unified[..., 14:15] = gripper
+                inputs["actions"] = unified
+        if "actions_is_pad" in data:
+            inputs["actions_is_pad"] = np.asarray(data["actions_is_pad"]).reshape(-1).astype(bool)
+
+        if "prompt" in data:
+            prompt = data["prompt"]
+            if isinstance(prompt, bytes):
+                prompt = prompt.decode("utf-8")
+            inputs["prompt"] = prompt
+
+        return inputs
+
+
 # ───────────────────── v3: real state input, continuous actions ─────────────────────
 #
 # v3 = v2 shape but with real joint + gripper state routed to the model.

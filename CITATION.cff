@@ -36,13 +36,40 @@ keywords:
 license: Apache-2.0
 version: 0.1.0
 date-released: "2026-07-26"
-# TODO: update with the public repository URL upon release.
 repository-code: "https://github.com/alibaba-damo-academy/RynnValue"
-# TODO: uncomment and complete once the paper is published.
-# preferred-citation:
-#   type: article
-#   title: "RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance"
-#   authors:
-#     - name: "RynnValue Team, Alibaba"
-#   year: 2026
-#   url: "https://arxiv.org/abs/XXXX.XXXXX"
+preferred-citation:
+  type: article
+  title: "RynnValue: Scaling Robotic Value Foundation Models with Temporal Distance"
+  authors:
+    - family-names: Huang
+      given-names: Dongchi
+    - family-names: Zhang
+      given-names: Hongyin
+    - family-names: Hou
+      given-names: Bohan
+    - family-names: Huang
+      given-names: Siteng
+    - family-names: Su
+      given-names: Zhian
+    - family-names: Guo
+      given-names: Hang
+    - family-names: Lu
+      given-names: Tong
+    - family-names: Tang
+      given-names: Jiahao
+    - family-names: Yang
+      given-names: Jianfei
+    - family-names: Wang
+      given-names: Donglin
+    - family-names: Peng
+      given-names: Peixi
+    - family-names: Chen
+      given-names: Mingxiu
+    - family-names: Zhao
+      given-names: Deli
+    - family-names: Li
+      given-names: Xin
+  year: 2026
+  doi: "10.48550/arXiv.2608.09853"
+  url: "https://arxiv.org/abs/2608.09853"
+  notes: "arXiv preprint arXiv:2608.09853"

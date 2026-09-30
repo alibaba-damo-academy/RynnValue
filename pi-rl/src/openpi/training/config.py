@@ -32,6 +32,7 @@ import openpi.training.episode_filter as _episode_filter
 import openpi.training.misc.polaris_config as polaris_config
 import openpi.training.misc.roboarena_config as roboarena_config
 import openpi.training.optimizer as _optimizer
+import openpi.training.progress_advantage as _progress_advantage
 import openpi.training.weight_loaders as weight_loaders
 import openpi.transforms as _transforms
 
@@ -119,6 +120,25 @@ class MultiDataConfig(DataConfig):
 
     # LeRobot repo ids to combine via MultiLeRobotDataset.
     repo_ids: tuple[str, ...] = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class MixedMultiDataConfig(MultiDataConfig):
+    """Multi-repo data config joining heterogeneous-schema repos (e.g. single-arm +
+    dual-arm Franka) via a per-repo ``ConcatDataset`` instead of ``MultiLeRobotDataset``
+    — see ``data_loader.create_cfg_multi_torch_dataset``. Per-sample transforms unify the
+    schemas downstream. ``extra_delta_timestamps`` merges additional ``delta_timestamps``
+    entries (beyond the action chunk) into each per-repo lerobot lookup.
+    """
+
+    # Extra ``delta_timestamps`` entries merged into each per-repo LeRobot dataset call
+    # (in addition to the action chunk), e.g. ``{"progress": (0, 1/fps, ..., W/fps)}``.
+    extra_delta_timestamps: dict[str, tuple[float, ...]] = dataclasses.field(default_factory=dict)
+
+    # Optional frame-level whitelist for filter-BC training: per-repo global lerobot frame
+    # ``index`` values (aligned with ``repo_ids`` order); the data loader wraps each repo
+    # dataset in a ``Subset`` of these frames. None = train on all frames.
+    frame_filter_indices: tuple[tuple[int, ...], ...] | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1531,6 +1551,194 @@ class LeRobotFrankaDualRLOptimizedV2DataConfig(_LeRobotFrankaRLDataConfigBase):
 
 
 @dataclasses.dataclass(frozen=True)
+class LeRobotFrankaMixedOptimizedV2DataConfig(MultiDataConfigFactory):
+    """Plain multi-task fine-tuning over mixed single-arm + dual-arm optimized-v2 repos.
+
+    Joins repos with heterogeneous schemas per-repo (``ConcatDataset``, unified 16-dim
+    action layout, camera masking) with no progress conditioning: the prompt is the task
+    string only and every frame trains. Serves as the unfiltered SFT baseline against
+    :class:`LeRobotFrankaMixedFilterBCOptimizedV2DataConfig`.
+    """
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> MixedMultiDataConfig:
+        if not self.repo_ids:
+            raise ValueError("LeRobotFrankaMixedOptimizedV2DataConfig requires non-empty repo_ids.")
+
+        repo_ids = list(self.repo_ids)
+
+        mapping = {
+            "observation.images.left_side": "observation.images.left_side",
+            "observation.images.left_wrist": "observation.images.left_wrist",
+            "observation.images.right_side": "observation.images.right_side",
+            "observation.images.right_wrist": "observation.images.right_wrist",
+            "action.arm": "action.arm",
+            "action.gripper": "action.gripper",
+            "actions_is_pad": "action.arm_is_pad",
+            "prompt": "prompt",
+        }
+        repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(mapping)])
+
+        data_transforms = _transforms.Group(
+            inputs=[
+                franka_optimized_policy.OptimizedFrankaMixedOptimizedV2Inputs(
+                    model_type=model_config.model_type,
+                )
+            ],
+            outputs=[franka_optimized_policy.OptimizedFrankaDualOutputsV2()],
+        )
+
+        base = self.create_base_multi_config(assets_dirs, model_config, repo_ids)
+        overrides = {
+            "repack_transforms": repack_transform,
+            "data_transforms": data_transforms,
+            "model_transforms": ModelTransformFactory()(model_config),
+            "action_sequence_keys": ("action.arm", "action.gripper"),
+        }
+        carried = {f.name: getattr(base, f.name) for f in dataclasses.fields(base) if f.name not in overrides}
+        return MixedMultiDataConfig(**carried, **overrides)
+
+
+def _dataset_available(repo_id: str | None) -> bool:
+    """Whether a lerobot repo can actually be opened on this box.
+
+    ``create()`` also runs when building a policy for inference
+    (``create_trained_policy``), where the training repos are typically not mounted --
+    an empty/MISSING ``repo_id`` or an absent absolute path. Advantage thresholds and
+    filter whitelists only matter for training, so callers skip the dataset scan (and
+    any filtering) when this is False. Non-absolute (hub-style) repo ids still load.
+    """
+    if repo_id is tyro.MISSING or not repo_id:
+        return False
+    path = pathlib.Path(repo_id)
+    return not (path.is_absolute() and not path.exists())
+
+
+def _advantage_cache_suffix(criterion: str, adv_h: int, quantile: float, lam: float) -> str:
+    """Cache-key suffix for advantage threshold / filter-index JSON caches, so changing
+    the criterion, window W, quantile or lambda never silently reuses stale entries."""
+    suffix = f"{criterion}_w{adv_h}"
+    if criterion == "quantile":
+        suffix += f"_q{round(quantile * 100)}"
+    if lam != 1.0:
+        suffix += f"_lam{str(lam).replace('.', 'p')}"
+    return suffix
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotFrankaMixedFilterBCOptimizedV2DataConfig(MultiDataConfigFactory):
+    """Filter-BC baseline over mixed single-arm + dual-arm optimized-v2 repos.
+
+    Frames whose window advantage ``A_t`` (the lambda-discounted progress return over an
+    ``advantage_horizon`` window) does not exceed the per-repo threshold are dropped from
+    training; the retained frames train as plain BC (task prompt only --
+    ``OptimizedFrankaMixedOptimizedV2Inputs``). Filter whitelists are computed offline
+    from the lerobot parquet ``progress`` columns and cached at
+    ``<assets_dirs>/<asset_id>/filter_bc_indices_{...}.json``.
+
+    Returns a :class:`MixedMultiDataConfig` (not a plain MultiDataConfig) so the per-repo
+    frame whitelist is applied via ``Subset`` in ``create_cfg_multi_torch_dataset``; mixed
+    single-arm / dual-arm repos have heterogeneous schemas, so the per-repo ConcatDataset
+    join is required here rather than ``MultiLeRobotDataset``.
+    """
+
+    # Advantage threshold criterion: "zero" (A_t > 0 kept, default), "mean", "median"
+    # or "quantile" (kept fraction = 1 - quantile).
+    advantage_criterion: str = "zero"
+    # Advantage window W in dataset steps: A_t = sum_k lambda^k * r_{t+k}, r = progress diff.
+    advantage_horizon: int = 50
+    # Quantile used only when advantage_criterion == "quantile".
+    advantage_quantile: float = 0.7
+    # Lambda discount on per-frame progress rewards inside the window.
+    advantage_lambda: float = 1.0
+    # Manual per-repo threshold override {repo_id: threshold}; other repos are auto-computed.
+    advantage_threshold_overrides: Mapping[str, float] | None = None
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> MixedMultiDataConfig:
+        if not self.repo_ids:
+            raise ValueError("LeRobotFrankaMixedFilterBCOptimizedV2DataConfig requires non-empty repo_ids.")
+
+        repo_ids = list(self.repo_ids)
+        # Thresholds + filter indices only matter for training; on serving boxes without
+        # the training repos fall back to no filtering instead of touching the dataset.
+        datasets_available = _dataset_available(repo_ids[0])
+
+        adv_h = int(self.advantage_horizon)
+        asset_id = self.assets.asset_id or self.repo_id
+        assets_root = pathlib.Path(self.assets.assets_dir or assets_dirs) / asset_id
+        suffix = _advantage_cache_suffix(
+            self.advantage_criterion, adv_h, self.advantage_quantile, self.advantage_lambda
+        )
+
+        if self.advantage_criterion == "zero":
+            thresholds = dict.fromkeys(repo_ids, 0.0)
+            if self.advantage_threshold_overrides:
+                for repo, value in self.advantage_threshold_overrides.items():
+                    if repo in thresholds:
+                        thresholds[repo] = float(value)
+        elif datasets_available:
+            thresholds = _progress_advantage.load_or_compute_thresholds(
+                repo_ids,
+                assets_root / f"advantage_thresholds_{suffix}.json",
+                adv_h,
+                criterion=self.advantage_criterion,
+                quantile=self.advantage_quantile,
+                overrides=self.advantage_threshold_overrides,
+                discount=self.advantage_lambda,
+            )
+        else:
+            import json
+
+            cache_path = assets_root / f"advantage_thresholds_{suffix}.json"
+            cached = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+            thresholds = {repo: float(cached.get(repo, 0.0)) for repo in repo_ids}
+
+        frame_filter_indices: tuple[tuple[int, ...], ...] | None = None
+        if datasets_available:
+            kept = _progress_advantage.load_or_compute_filtered_indices(
+                repo_ids,
+                assets_root / f"filter_bc_indices_{suffix}.json",
+                adv_h,
+                thresholds,
+                discount=self.advantage_lambda,
+            )
+            frame_filter_indices = tuple(tuple(kept[repo]) for repo in repo_ids)
+
+        mapping = {
+            "observation.images.left_side": "observation.images.left_side",
+            "observation.images.left_wrist": "observation.images.left_wrist",
+            "observation.images.right_side": "observation.images.right_side",
+            "observation.images.right_wrist": "observation.images.right_wrist",
+            "action.arm": "action.arm",
+            "action.gripper": "action.gripper",
+            "actions_is_pad": "action.arm_is_pad",
+            "prompt": "prompt",
+        }
+        repack_transform = _transforms.Group(inputs=[_transforms.RepackTransform(mapping)])
+
+        data_transforms = _transforms.Group(
+            inputs=[
+                franka_optimized_policy.OptimizedFrankaMixedOptimizedV2Inputs(
+                    model_type=model_config.model_type,
+                )
+            ],
+            outputs=[franka_optimized_policy.OptimizedFrankaDualOutputsV2()],
+        )
+
+        base = self.create_base_multi_config(assets_dirs, model_config, repo_ids)
+        overrides = {
+            "repack_transforms": repack_transform,
+            "data_transforms": data_transforms,
+            "model_transforms": ModelTransformFactory()(model_config),
+            "action_sequence_keys": ("action.arm", "action.gripper"),
+            "frame_filter_indices": frame_filter_indices,
+        }
+        carried = {f.name: getattr(base, f.name) for f in dataclasses.fields(base) if f.name not in overrides}
+        return MixedMultiDataConfig(**carried, **overrides)
+
+
+@dataclasses.dataclass(frozen=True)
 class LeRobotFrankaSingleOptimizedV3DataConfig(_LeRobotFrankaDataConfigBase):
     """Optimized single-arm Franka v3: 2 cameras, real state (arm+gripper) fed to
     the model, continuous absolute joint + gripper actions."""
@@ -2743,6 +2951,84 @@ _CONFIGS = [
             ),
             critic_warmup_steps=200,
         ),
+    ),
+    #
+    # Franka mixed multi-task SFT: single-arm (drawer/bread/steak) + dual-arm (box) repos
+    # unified into the 16-dim dual action layout, every frame trains, task prompt only.
+    # The unfiltered control arm for pi05_franka_mixed_filter_bc below — identical
+    # hyperparameters, so the pair isolates the effect of progress filtering.
+    #
+    TrainConfig(
+        name="pi05_franka_mixed_sft",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=16,
+        ),
+        data=LeRobotFrankaMixedOptimizedV2DataConfig(
+            # Asset / norm-stats identifier only — not a real LeRobot repo.
+            repo_id="franka_mixed_sft",
+            repo_ids=(
+                "/path/to/franka_lerobot_data/close_the_drawer",
+                "/path/to/franka_lerobot_data/pick_up_the_box",
+                "/path/to/franka_lerobot_data/pick_up_the_bread",
+                "/path/to/franka_lerobot_data/pick_up_the_steak",
+            ),
+            base_config=DataConfig(prompt_from_task=True),
+        ),
+        batch_size=64,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=2_000,
+            peak_lr=3e-5,
+            decay_steps=20_000,
+            decay_lr=3e-6,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.99,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        save_interval=2_000,
+        fsdp_devices=1,
+    ),
+    #
+    # Franka filter BC: frames whose W-window advantage does not exceed the per-repo
+    # threshold (A_t > 0 by default) are dropped; the kept frames train as plain BC
+    # (task prompt only). Single-arm (drawer/bread/steak) + dual-arm (box) repos are
+    # unified into the 16-dim dual action layout by the mixed input transform, so the
+    # repos must carry a per-frame ``progress`` feature (the RynnValue-labeled dumps).
+    # Override ``--data.repo_ids`` to point at your own dumps.
+    #
+    TrainConfig(
+        name="pi05_franka_mixed_filter_bc",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=16,
+        ),
+        data=LeRobotFrankaMixedFilterBCOptimizedV2DataConfig(
+            # Asset / norm-stats identifier only — not a real LeRobot repo.
+            repo_id="franka_mixed_filter_bc",
+            repo_ids=(
+                "/path/to/franka_lerobot_data/close_the_drawer",
+                "/path/to/franka_lerobot_data/pick_up_the_box",
+                "/path/to/franka_lerobot_data/pick_up_the_bread",
+                "/path/to/franka_lerobot_data/pick_up_the_steak",
+            ),
+            base_config=DataConfig(prompt_from_task=True),
+            advantage_criterion="zero",
+            advantage_lambda=0.98,
+        ),
+        batch_size=64,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=2_000,
+            peak_lr=3e-5,
+            decay_steps=20_000,
+            decay_lr=3e-6,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.99,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=20_000,
+        save_interval=2_000,
+        fsdp_devices=1,
     ),
 
 

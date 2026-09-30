@@ -50,6 +50,28 @@ def _empty_query_videos(query_timestamps, ep_idx):  # noqa: ARG001  (signature m
     return {}
 
 
+def _collect_lerobot_subsets(dataset) -> list:
+    """Recursively collect the raw LeRobotDataset(s) under TransformedDataset /
+    ConcatDataset / Subset / MultiLeRobotDataset wrappers (filter BC nests the lerobot
+    dataset inside a per-repo ``Subset`` of a ``ConcatDataset``)."""
+    if getattr(dataset, "meta", None) is not None and hasattr(dataset, "_query_videos"):
+        return [dataset]
+    children = (
+        getattr(dataset, "_datasets", None)
+        or getattr(dataset, "datasets", None)
+        or getattr(dataset, "_dataset", None)
+        or getattr(dataset, "dataset", None)
+    )
+    if children is None:
+        return []
+    if not isinstance(children, list | tuple):
+        children = [children]
+    out: list = []
+    for child in children:
+        out.extend(_collect_lerobot_subsets(child))
+    return out
+
+
 def _disable_videos_inplace(dataset) -> dict[str, tuple[int, ...]]:
     """Patch one or more LeRobotDataset(s) so __getitem__ skips video decode.
 
@@ -62,12 +84,9 @@ def _disable_videos_inplace(dataset) -> dict[str, tuple[int, ...]]:
     Returns ``{camera_key -> shape}`` so the caller can fabricate zero placeholders that
     keep downstream transforms (``RepackTransform``, ``ResizeImages``, ...) happy.
     """
-    sub_datasets = getattr(dataset, "_datasets", [dataset])
     cam_shapes: dict[str, tuple[int, ...]] = {}
-    for sub in sub_datasets:
-        meta = getattr(sub, "meta", None)
-        if meta is None:
-            continue
+    for sub in _collect_lerobot_subsets(dataset):
+        meta = sub.meta
         for key in list(getattr(meta, "video_keys", []) or []):
             feat = meta.info["features"].get(key, {})
             shape = tuple(feat.get("shape", (3, 480, 640)))
@@ -176,6 +195,10 @@ def main(
     batch_size: int | None = None,
     skip_video: bool = True,
     episode_filter_path: str | None = None,
+    advantage_criterion: str | None = None,
+    advantage_horizon: int | None = None,
+    advantage_quantile: float | None = None,
+    advantage_lambda: float | None = None,
 ):
     """Compute norm stats fast.
 
@@ -192,8 +215,29 @@ def main(
             placeholders. Set False if you ever extend norm stats to depend on pixels.
         episode_filter_path: Override the episode filter path. Set to /dev/null to disable
             filtering (use all episodes).
+        advantage_criterion: Override the filter-BC advantage criterion (zero/mean/median/
+            quantile).
+        advantage_horizon: Override the filter-BC advantage window W (dataset steps).
+        advantage_quantile: Override the filter-BC positive-class quantile.
+        advantage_lambda: Override the filter-BC discount on per-frame progress rewards.
+
+    The four ``advantage_*`` overrides exist because this pass is what populates the
+    advantage-threshold and frame-whitelist JSON caches (a side effect of
+    ``config.data.create()``); all four feed the cache-key suffix, so they must match the
+    values ``train.py`` is launched with or the training run recomputes them from scratch.
     """
     config = _config.get_config(config_name)
+    data = config.data
+    for field, value in (
+        ("advantage_criterion", advantage_criterion),
+        ("advantage_horizon", advantage_horizon),
+        ("advantage_quantile", advantage_quantile),
+        ("advantage_lambda", advantage_lambda),
+    ):
+        if value is not None and hasattr(data, field):
+            data = dataclasses.replace(data, **{field: value})
+    if data is not config.data:
+        config = dataclasses.replace(config, data=data)
     if repo_id is not None:
         new_assets = dataclasses.replace(config.data.assets, asset_id=None)
         config = dataclasses.replace(config, data=dataclasses.replace(config.data, repo_id=repo_id, assets=new_assets))

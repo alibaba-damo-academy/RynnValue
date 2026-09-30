@@ -1,5 +1,6 @@
 # adapted from openpi
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+import concurrent.futures
 import logging
 import multiprocessing
 import os
@@ -217,10 +218,108 @@ def create_multi_torch_dataset(
     return dataset
 
 
+def _frame_filter_positions(
+    dataset: "_lerobot_patched.PatchedLeRobotDataset", global_indices: Sequence[int]
+) -> list[int]:
+    """Map filter-BC global lerobot frame ``index`` values to positional indices of the
+    per-repo hf dataset (``__getitem__`` is positional over its rows)."""
+    pos_by_index = {int(g): i for i, g in enumerate(dataset.hf_dataset["index"])}
+    positions = [pos_by_index[int(g)] for g in global_indices if int(g) in pos_by_index]
+    missing = len(global_indices) - len(positions)
+    if missing:
+        logging.warning(
+            "frame filter: %d of %d kept frame indices are absent from the dataset (episode whitelist or stale cache?)",
+            missing,
+            len(global_indices),
+        )
+    return positions
+
+
+def create_cfg_multi_torch_dataset(
+    data_config: "_config.MixedMultiDataConfig", action_horizon: int, model_config: _model.BaseModelConfig
+) -> Dataset:
+    """Join several lerobot repos with heterogeneous schemas via a per-repo ConcatDataset.
+
+    Unlike :func:`create_multi_torch_dataset` this does NOT build a MultiLeRobotDataset:
+    mixed repos may have heterogeneous schemas (e.g. single-arm ``action.arm(7)`` vs dual-arm
+    ``action.arm(14)``) that cannot be concatenated at the hf level, and the transforms
+    unify them per sample instead. Each sub-dataset gets its own prompt table, and
+    ``extra_delta_timestamps`` from the config merges additional ``delta_timestamps`` entries
+    into each per-repo lerobot lookup alongside the action chunk; filter BC leaves it empty,
+    since it scores the ``progress`` column offline from the parquet files rather than per
+    sample.
+
+    When the config carries ``frame_filter_indices`` (filter BC), each repo dataset is
+    wrapped in a ``Subset`` of the whitelisted frames.
+    """
+    if not data_config.repo_ids:
+        raise ValueError("MixedMultiDataConfig.repo_ids is empty; cannot build the dataset.")
+    del model_config  # action_horizon + fps fully determine the delta_timestamps here.
+
+    repo_ids = list(data_config.repo_ids)
+    fps_by_repo = {repo_id: float(_lerobot_patched.PatchedLeRobotDatasetMetadata(repo_id).fps) for repo_id in repo_ids}
+    if len(set(fps_by_repo.values())) > 1:
+        raise ValueError(f"Multi-repo training requires a shared fps across repos; got {fps_by_repo}")
+    fps = next(iter(fps_by_repo.values()))
+
+    delta_timestamps: dict[str, list[float]] = {
+        key: [t / fps for t in range(action_horizon)] for key in data_config.action_sequence_keys
+    }
+    for key, offsets in data_config.extra_delta_timestamps.items():
+        delta_timestamps[key] = list(offsets)
+
+    episodes_map = data_config.episode_ids if isinstance(data_config.episode_ids, Mapping) else None
+    frame_filters = data_config.frame_filter_indices
+
+    def _build_sub(repo_index: int, repo_id: str) -> Dataset:
+        episodes = list(episodes_map[repo_id]) if episodes_map is not None and repo_id in episodes_map else None
+        sub = _lerobot_patched.PatchedLeRobotDataset(
+            repo_id,
+            delta_timestamps=delta_timestamps,
+            video_backend="pyav",
+            episodes=episodes,
+        )
+        transforms: list[_transforms.DataTransformFn] = []
+        if data_config.prompt_from_task:
+            transforms.append(_transforms.PromptFromLeRobotTask(sub.meta.tasks))
+        logging.info(
+            "create_cfg_multi_torch_dataset: repo %d/%d %s — %d samples (episodes=%s)",
+            repo_index + 1,
+            len(repo_ids),
+            repo_id,
+            len(sub),
+            "all" if episodes is None else len(episodes),
+        )
+        dataset: Dataset = TransformedDataset(sub, transforms) if transforms else sub
+        if frame_filters is not None:
+            positions = _frame_filter_positions(sub, frame_filters[repo_index])
+            logging.info(
+                "create_cfg_multi_torch_dataset: repo %d/%d %s — filter BC keeps %d/%d frames",
+                repo_index + 1,
+                len(repo_ids),
+                repo_id,
+                len(positions),
+                len(sub),
+            )
+            dataset = torch.utils.data.Subset(dataset, positions)
+        return dataset
+
+    # Per-repo construction is independent and I/O-bound (meta JSON + parquet index reads),
+    # so build the repos concurrently. ``pool.map`` preserves input order, which keeps
+    # ConcatDataset position i aligned with repo_ids[i] and frame_filter_indices[i].
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(repo_ids)) as pool:
+        datasets = list(pool.map(lambda pair: _build_sub(*pair), enumerate(repo_ids)))
+    return torch.utils.data.ConcatDataset(datasets)
+
+
 def make_torch_dataset(
     data_config: _config.DataConfig, action_horizon: int, model_config: _model.BaseModelConfig
 ) -> Dataset:
     """Type-dispatching helper: returns a single- or multi-repo dataset based on data_config."""
+    # MixedMultiDataConfig joins heterogeneous-schema repos per-repo — check it before the
+    # generic MultiDataConfig branch.
+    if isinstance(data_config, _config.MixedMultiDataConfig):
+        return create_cfg_multi_torch_dataset(data_config, action_horizon, model_config)
     if isinstance(data_config, _config.MultiDataConfig):
         return create_multi_torch_dataset(data_config, action_horizon, model_config)
     return create_torch_dataset(data_config, action_horizon, model_config)
